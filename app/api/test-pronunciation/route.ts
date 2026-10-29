@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { runPronunciationTestSuite } from "@/lib/speech/pronunciationTests";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const report = runPronunciationTestSuite();
 

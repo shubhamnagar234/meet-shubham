@@ -47,7 +47,9 @@ export function VoiceAssistant() {
     };
 
     window.addEventListener("click", handleInitialGesture, { passive: true });
-    window.addEventListener("touchstart", handleInitialGesture, { passive: true });
+    window.addEventListener("touchstart", handleInitialGesture, {
+      passive: true,
+    });
     window.addEventListener("keydown", handleInitialGesture, { passive: true });
 
     return () => {

@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { runGroundingSuite } from "@/app/data/groundingAudit";
-import { matchFallbackAnswer, UNRECOGNIZED_FALLBACK_MESSAGE } from "@/app/data/fallbackAnswers";
+import {
+  matchFallbackAnswer,
+  UNRECOGNIZED_FALLBACK_MESSAGE,
+} from "@/app/data/fallbackAnswers";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     // Run the complete deterministic grounding audit suite
     const suiteReport = runGroundingSuite((question) => {
