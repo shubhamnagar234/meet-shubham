@@ -31,10 +31,10 @@ const WELCOME_MESSAGE: Message = {
 
 export function VoiceAssistant() {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
-  const [appState, setAppState] = useState<AppState>("idle");
   const [inputText, setInputText] = useState("");
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
-  const [interimText, setInterimText] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(
     null
   );
@@ -46,63 +46,10 @@ export function VoiceAssistant() {
 
   const { isSpeaking, speak, stop, replay } = useSpeechSynthesis();
 
-  const handleSpeechResult = useCallback((transcript: string) => {
-    setInterimText("");
-    submitQuestion(transcript);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleSpeechError = useCallback((error: string) => {
-    setAppState("error");
-    setErrorBanner(error);
-    setTimeout(() => setAppState("idle"), 2000);
-  }, []);
-
-  const handleSpeechEnd = useCallback(() => {
-    setInterimText("");
-  }, []);
-
-  const { isSupported, isListening, interimTranscript, startListening, stopListening } =
-    useSpeechRecognition({
-      onResult: handleSpeechResult,
-      onError: handleSpeechError,
-      onEnd: handleSpeechEnd,
-    });
-
-  // Keep interim transcript synced
-  useEffect(() => {
-    setInterimText(interimTranscript);
-  }, [interimTranscript]);
-
-  // Sync appState with listening
-  useEffect(() => {
-    if (isListening) {
-      setAppState("listening");
-    } else if (appState === "listening") {
-      setAppState("processing");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isListening]);
-
-  // Sync appState with speaking
-  useEffect(() => {
-    if (isSpeaking) {
-      setAppState("speaking");
-    } else if (appState === "speaking") {
-      setAppState("idle");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSpeaking]);
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
   const submitQuestion = useCallback(
     async (question: string) => {
       const trimmed = question.trim();
-      if (!trimmed || appState === "processing") return;
+      if (!trimmed || isProcessing) return;
 
       // Clear input & error
       setInputText("");
@@ -116,7 +63,7 @@ export function VoiceAssistant() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, userMsg]);
-      setAppState("processing");
+      setIsProcessing(true);
 
       // Stop any ongoing speech
       stop();
@@ -157,28 +104,62 @@ export function VoiceAssistant() {
 
         // Speak the answer
         speak(data.answer);
-        setAppState("speaking");
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
         setErrorBanner(msg);
-        setAppState("error");
-        setTimeout(() => setAppState("idle"), 3000);
+        setIsError(true);
+        setTimeout(() => setIsError(false), 3000);
+      } finally {
+        setIsProcessing(false);
       }
     },
-    [appState, speak, stop]
+    [isProcessing, speak, stop]
   );
 
+  const handleSpeechResult = useCallback(
+    (transcript: string) => {
+      submitQuestion(transcript);
+    },
+    [submitQuestion]
+  );
+
+  const handleSpeechError = useCallback((error: string) => {
+    setIsError(true);
+    setErrorBanner(error);
+    setTimeout(() => setIsError(false), 2000);
+  }, []);
+
+  const { isSupported, isListening, interimTranscript, startListening, stopListening } =
+    useSpeechRecognition({
+      onResult: handleSpeechResult,
+      onError: handleSpeechError,
+    });
+
+  // Derive appState cleanly without cascading setState effects
+  const appState: AppState = isError
+    ? "error"
+    : isListening
+    ? "listening"
+    : isProcessing
+    ? "processing"
+    : isSpeaking
+    ? "speaking"
+    : "idle";
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   const handleMicClick = useCallback(() => {
-    if (appState === "listening") {
+    if (isListening) {
       stopListening();
-      setAppState("idle");
-    } else if (appState === "speaking") {
+    } else if (isSpeaking) {
       stop();
-      setAppState("idle");
-    } else if (appState === "idle" || appState === "error") {
+    } else if (!isProcessing) {
       startListening();
     }
-  }, [appState, startListening, stopListening, stop]);
+  }, [isListening, isSpeaking, isProcessing, startListening, stopListening, stop]);
 
   const handleTextSubmit = useCallback(
     (q: string) => {
@@ -321,12 +302,12 @@ export function VoiceAssistant() {
           />
 
           {/* Interim transcript */}
-          {(interimText || isListening) && (
+          {(interimTranscript || isListening) && (
             <p
               aria-live="polite"
               className="text-sm text-slate-400 italic text-center mt-2 max-w-md animate-fade-in min-h-[1.25rem]"
             >
-              {interimText || "Listening…"}
+              {interimTranscript || "Listening…"}
             </p>
           )}
         </section>

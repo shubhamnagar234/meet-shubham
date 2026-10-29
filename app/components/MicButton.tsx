@@ -121,7 +121,7 @@ export function MicButton({ state, isSupported, onClick }: MicButtonProps) {
           role="alert"
           aria-live="polite"
         >
-          🎤 Voice input isn't available in this browser. Use the text input
+          🎤 Voice input isn&apos;t available in this browser. Use the text input
           below. (Try Chrome or Edge for full voice support.)
         </p>
       )}
