@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
   const candidateModels = [
     process.env.GEMINI_MODEL,
     "gemini-3.5-flash",
+    "gemini-3-flash-preview",
     "gemini-3.5-flash-lite",
     "gemini-2.5-flash",
   ].filter(Boolean) as string[];
@@ -122,20 +123,25 @@ export async function POST(req: NextRequest) {
     let lastError: unknown = null;
     for (const modelId of uniqueModels) {
       try {
+        const isLite = modelId.toLowerCase().includes("lite");
+        const config: Record<string, unknown> = {
+          systemInstruction,
+          maxOutputTokens: 800,
+          temperature: 0.7,
+        };
+
+        // Lite models do not support thinkingConfig; flash/reasoning models use thinkingBudget: 0 to avoid truncation
+        if (!isLite) {
+          config.thinkingConfig = { thinkingBudget: 0 };
+        }
+
         const response = await client.models.generateContent({
           model: modelId,
           contents: [
             ...safeHistory,
             { role: "user", parts: [{ text: question.trim() }] },
           ],
-          config: {
-            systemInstruction,
-            thinkingConfig: {
-              thinkingBudget: 0,
-            },
-            maxOutputTokens: 800,
-            temperature: 0.7,
-          },
+          config,
         });
 
         const answer =
