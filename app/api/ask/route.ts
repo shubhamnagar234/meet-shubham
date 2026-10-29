@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const modelId = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+  const modelId = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
 
   // Build conversation history (keep last 6 turns, bounded)
   const safeHistory: Array<{
@@ -175,13 +175,18 @@ export async function POST(req: NextRequest) {
       ],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        maxOutputTokens: 300,
+        thinkingConfig: {
+          thinkingBudget: 0,
+        },
+        maxOutputTokens: 800,
         temperature: 0.7,
       },
     });
 
     const answer =
-      response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+      response.text?.trim() ??
+      response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ??
+      "";
 
     if (!answer) {
       return NextResponse.json(

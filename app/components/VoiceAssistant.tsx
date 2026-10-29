@@ -19,7 +19,7 @@ const WELCOME_MESSAGE: Message = {
   role: "assistant",
   content:
     "Hi! I'm an AI assistant representing Shubham Nagar. Ask me anything about his engineering background, projects, or experience — via your microphone or the text box below.",
-  timestamp: new Date(),
+  timestamp: new Date("2026-10-29T10:00:00.000Z"),
 };
 
 export function VoiceAssistant() {

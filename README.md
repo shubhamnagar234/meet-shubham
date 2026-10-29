@@ -46,7 +46,7 @@ Edit `.env.local`:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ### 3. Run the dev server
@@ -64,7 +64,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GEMINI_API_KEY` | ✅ Yes | Your Google Gemini API key from [aistudio.google.com](https://aistudio.google.com/) |
-| `GEMINI_MODEL` | Optional | Model ID (default: `gemini-2.0-flash`) |
+| `GEMINI_MODEL` | Optional | Model ID (default: `gemini-2.5-flash`) |
 
 > **Security**: `.env.local` is excluded from Git. Never commit real API keys.
 
@@ -93,7 +93,7 @@ In Vercel project settings → **Environment Variables**, add:
 | Name | Value |
 |------|-------|
 | `GEMINI_API_KEY` | `AIzaSy...` (your real key) |
-| `GEMINI_MODEL` | `gemini-2.0-flash` |
+| `GEMINI_MODEL` | `gemini-2.5-flash` |
 
 ### Step 4: Deploy
 

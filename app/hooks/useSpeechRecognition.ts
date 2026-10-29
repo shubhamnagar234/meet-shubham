@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, useSyncExternalStore } from "react";
+
+const emptySubscribe = () => () => {};
 
 // Browser Speech Recognition types
 interface ISpeechRecognition extends EventTarget {
@@ -97,9 +99,11 @@ export function useSpeechRecognition({
     onEndRef.current = onEnd;
   }, [onEnd]);
 
-  const isSupported =
-    typeof window !== "undefined" &&
-    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+  const isSupported = useSyncExternalStore(
+    emptySubscribe,
+    () => "SpeechRecognition" in window || "webkitSpeechRecognition" in window,
+    () => true
+  );
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {

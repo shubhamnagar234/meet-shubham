@@ -64,6 +64,7 @@ export function ChatMessage({
         <time
           className="text-[10px] text-slate-500"
           dateTime={message.timestamp.toISOString()}
+          suppressHydrationWarning
         >
           {message.timestamp.toLocaleTimeString([], {
             hour: "2-digit",
