@@ -60,17 +60,35 @@ export function ChatMessage({
           )}
         </div>
 
-        {/* Timestamp */}
-        <time
-          className="text-[10px] text-slate-500"
-          dateTime={message.timestamp.toISOString()}
-          suppressHydrationWarning
-        >
-          {message.timestamp.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </time>
+        {/* Timestamp & fallback transparency badge */}
+        <div className="flex items-center gap-2">
+          <time
+            className="text-[10px] text-slate-500"
+            dateTime={message.timestamp.toISOString()}
+            suppressHydrationWarning
+          >
+            {message.timestamp.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </time>
+
+          {message.isFallback && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30"
+              title={
+                message.source === "offline_notice"
+                  ? "Live AI rate limit notice"
+                  : "Verified background answer bank (Live AI quota exhausted)"
+              }
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              {message.source === "offline_notice"
+                ? "Live AI Quota Limit"
+                : "Verified Profile Answer"}
+            </span>
+          )}
+        </div>
 
         {/* Playback controls for last assistant message */}
         {!isUser && isLastAssistant && (

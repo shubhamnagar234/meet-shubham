@@ -74,6 +74,8 @@ export function VoiceAssistant() {
         const data = (await response.json()) as {
           answer?: string;
           error?: string;
+          isFallback?: boolean;
+          source?: Message["source"];
         };
 
         if (!response.ok || !data.answer) {
@@ -85,6 +87,8 @@ export function VoiceAssistant() {
           role: "assistant",
           content: data.answer,
           timestamp: new Date(),
+          isFallback: data.isFallback,
+          source: data.source,
         };
 
         setMessages((prev) => [...prev, assistantMsg]);
