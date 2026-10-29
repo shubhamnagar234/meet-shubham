@@ -13,7 +13,7 @@ export function Waveform({
 }: WaveformProps) {
   return (
     <div
-      className="flex items-center justify-center gap-[3px]"
+      className="flex items-center justify-center gap-0.75"
       aria-hidden="true"
       style={{ height: 28 }}
     >

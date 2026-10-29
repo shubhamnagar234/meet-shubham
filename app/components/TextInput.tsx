@@ -98,7 +98,7 @@ export function TextInput({
         aria-label="Send question"
         disabled={disabled || !value.trim() || isOverLimit}
         className="
-          flex-shrink-0 w-11 h-11 rounded-xl
+          shrink-0 w-11 h-11 rounded-xl
           bg-blue-600 hover:bg-blue-500
           disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-600
           flex items-center justify-center
@@ -106,7 +106,12 @@ export function TextInput({
           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
         "
       >
-        <Send size={18} className="text-white" strokeWidth={1.8} aria-hidden="true" />
+        <Send
+          size={18}
+          className="text-white"
+          strokeWidth={1.8}
+          aria-hidden="true"
+        />
       </button>
     </form>
   );

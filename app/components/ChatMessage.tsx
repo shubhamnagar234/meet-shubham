@@ -29,7 +29,7 @@ export function ChatMessage({
       {/* Avatar — assistant left */}
       {!isUser && (
         <div
-          className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-violet-600 ring-1 ring-blue-500/30"
+          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-linear-to-br from-blue-600 to-violet-600 ring-1 ring-blue-500/30"
           aria-hidden="true"
         >
           <Bot size={16} className="text-white" strokeWidth={1.8} />
@@ -117,7 +117,7 @@ export function ChatMessage({
       {/* Avatar — user right */}
       {isUser && (
         <div
-          className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-slate-600 to-slate-700 ring-1 ring-slate-500/30"
+          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-linear-to-br from-slate-600 to-slate-700 ring-1 ring-slate-500/30"
           aria-hidden="true"
         >
           <User size={16} className="text-slate-200" strokeWidth={1.8} />

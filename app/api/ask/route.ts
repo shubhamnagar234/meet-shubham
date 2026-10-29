@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
   if (isRateLimited(ip)) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment and try again." },
-      { status: 429 }
+      { status: 429 },
     );
   }
 
@@ -95,14 +95,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  if (
-    !body ||
-    typeof body !== "object" ||
-    !("question" in body)
-  ) {
+  if (!body || typeof body !== "object" || !("question" in body)) {
     return NextResponse.json(
       { error: "Missing required field: question." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -114,14 +110,14 @@ export async function POST(req: NextRequest) {
   if (typeof question !== "string" || question.trim().length === 0) {
     return NextResponse.json(
       { error: "Question must be a non-empty string." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (question.trim().length > 1000) {
     return NextResponse.json(
       { error: "Question must be 1,000 characters or fewer." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -131,14 +127,17 @@ export async function POST(req: NextRequest) {
     console.error("GEMINI_API_KEY is not configured.");
     return NextResponse.json(
       { error: "Server configuration error. Please contact the site owner." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
   const modelId = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
 
   // Build conversation history (keep last 6 turns, bounded)
-  const safeHistory: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> = [];
+  const safeHistory: Array<{
+    role: "user" | "model";
+    parts: Array<{ text: string }>;
+  }> = [];
   if (Array.isArray(history)) {
     const recent = history.slice(-6);
     for (const turn of recent) {
@@ -151,7 +150,11 @@ export async function POST(req: NextRequest) {
         Array.isArray(turn.parts)
       ) {
         const validParts = (turn.parts as unknown[]).filter(
-          (p) => p && typeof p === "object" && "text" in p && typeof (p as { text: unknown }).text === "string"
+          (p) =>
+            p &&
+            typeof p === "object" &&
+            "text" in p &&
+            typeof (p as { text: unknown }).text === "string",
         ) as Array<{ text: string }>;
         if (validParts.length > 0) {
           safeHistory.push({ role: turn.role, parts: validParts });
@@ -183,7 +186,7 @@ export async function POST(req: NextRequest) {
     if (!answer) {
       return NextResponse.json(
         { error: "The AI returned an empty response. Please try again." },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
@@ -195,25 +198,25 @@ export async function POST(req: NextRequest) {
     if (msg.includes("API_KEY_INVALID") || msg.includes("401")) {
       return NextResponse.json(
         { error: "Authentication failed. The API key may be invalid." },
-        { status: 401 }
+        { status: 401 },
       );
     }
     if (msg.includes("RESOURCE_EXHAUSTED") || msg.includes("429")) {
       return NextResponse.json(
         { error: "API quota exceeded. Please try again in a moment." },
-        { status: 429 }
+        { status: 429 },
       );
     }
     if (msg.includes("timeout") || msg.includes("DEADLINE_EXCEEDED")) {
       return NextResponse.json(
         { error: "The request timed out. Please try again." },
-        { status: 504 }
+        { status: 504 },
       );
     }
 
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

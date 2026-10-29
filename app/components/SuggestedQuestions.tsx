@@ -55,11 +55,7 @@ export function SuggestedQuestions({
   return (
     <section aria-label="Suggested questions">
       <div className="flex items-center gap-2 mb-3">
-        <MessageSquare
-          size={14}
-          className="text-blue-400"
-          aria-hidden="true"
-        />
+        <MessageSquare size={14} className="text-blue-400" aria-hidden="true" />
         <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
           Try asking
         </h2>

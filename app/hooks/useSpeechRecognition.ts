@@ -12,8 +12,12 @@ interface ISpeechRecognition extends EventTarget {
   stop(): void;
   onstart: ((this: ISpeechRecognition, ev: Event) => void) | null;
   onend: ((this: ISpeechRecognition, ev: Event) => void) | null;
-  onresult: ((this: ISpeechRecognition, ev: ISpeechRecognitionEvent) => void) | null;
-  onerror: ((this: ISpeechRecognition, ev: ISpeechRecognitionErrorEvent) => void) | null;
+  onresult:
+    | ((this: ISpeechRecognition, ev: ISpeechRecognitionEvent) => void)
+    | null;
+  onerror:
+    | ((this: ISpeechRecognition, ev: ISpeechRecognitionErrorEvent) => void)
+    | null;
 }
 
 interface ISpeechRecognitionEvent extends Event {
@@ -45,7 +49,7 @@ interface ISpeechRecognitionErrorEvent extends Event {
 }
 
 interface ISpeechRecognitionConstructor {
-  new(): ISpeechRecognition;
+  new (): ISpeechRecognition;
 }
 
 declare global {
@@ -83,9 +87,15 @@ export function useSpeechRecognition({
   const onEndRef = useRef(onEnd);
 
   // Keep refs current to avoid stale closures
-  useEffect(() => { onResultRef.current = onResult; }, [onResult]);
-  useEffect(() => { onErrorRef.current = onError; }, [onError]);
-  useEffect(() => { onEndRef.current = onEnd; }, [onEnd]);
+  useEffect(() => {
+    onResultRef.current = onResult;
+  }, [onResult]);
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+  useEffect(() => {
+    onEndRef.current = onEnd;
+  }, [onEnd]);
 
   const isSupported =
     typeof window !== "undefined" &&
@@ -102,7 +112,7 @@ export function useSpeechRecognition({
   const startListening = useCallback(() => {
     if (!isSupported) {
       onErrorRef.current(
-        "Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari."
+        "Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.",
       );
       return;
     }
@@ -157,11 +167,14 @@ export function useSpeechRecognition({
           "Microphone access was denied. Please allow microphone permission and try again.",
         "no-speech": "No speech detected. Please try again.",
         "audio-capture": "No microphone found. Please connect a microphone.",
-        network: "Network error during speech recognition. Please check your connection.",
+        network:
+          "Network error during speech recognition. Please check your connection.",
         aborted: "", // User-initiated, don't show error
       };
 
-      const msg = errorMessages[event.error] ?? `Speech recognition error: ${event.error}`;
+      const msg =
+        errorMessages[event.error] ??
+        `Speech recognition error: ${event.error}`;
       if (msg) onErrorRef.current(msg);
     };
 
@@ -183,7 +196,9 @@ export function useSpeechRecognition({
       recognition.start();
     } catch (err) {
       setIsListening(false);
-      onErrorRef.current("Failed to start speech recognition. Please try again.");
+      onErrorRef.current(
+        "Failed to start speech recognition. Please try again.",
+      );
       console.error("SpeechRecognition start error:", err);
     }
   }, [isSupported]);

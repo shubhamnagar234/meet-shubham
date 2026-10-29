@@ -73,12 +73,12 @@ export function MicButton({ state, isSupported, onClick }: MicButtonProps) {
             state === "listening"
               ? "#f97316"
               : state === "speaking"
-              ? "#34d399"
-              : state === "error"
-              ? "#ef4444"
-              : state === "processing"
-              ? "#a78bfa"
-              : "#64748b",
+                ? "#34d399"
+                : state === "error"
+                  ? "#ef4444"
+                  : state === "processing"
+                    ? "#a78bfa"
+                    : "#64748b",
         }}
       >
         {config.text}
@@ -121,8 +121,8 @@ export function MicButton({ state, isSupported, onClick }: MicButtonProps) {
           role="alert"
           aria-live="polite"
         >
-          🎤 Voice input isn&apos;t available in this browser. Use the text input
-          below. (Try Chrome or Edge for full voice support.)
+          🎤 Voice input isn&apos;t available in this browser. Use the text
+          input below. (Try Chrome or Edge for full voice support.)
         </p>
       )}
     </div>

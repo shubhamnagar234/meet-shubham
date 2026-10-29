@@ -44,7 +44,7 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
           (v.name.includes("Google") ||
             v.name.includes("Microsoft") ||
             v.name.includes("Alex") ||
-            v.name.includes("Samantha"))
+            v.name.includes("Samantha")),
       );
       if (preferred) utterance.voice = preferred;
 
@@ -78,7 +78,7 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
 
       window.speechSynthesis.speak(utterance);
     },
-    [isSupported]
+    [isSupported],
   );
 
   const replay = useCallback(() => {

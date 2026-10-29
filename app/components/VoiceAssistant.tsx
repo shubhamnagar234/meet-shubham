@@ -1,14 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Code2,
-  Users,
-  Globe,
-  BookOpen,
-  AlertCircle,
-  X,
-} from "lucide-react";
+import { Code2, Users, Globe, BookOpen, AlertCircle, X } from "lucide-react";
 import { Message, AppState, ConversationTurn } from "../types";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { useSpeechSynthesis } from "../hooks/useSpeechSynthesis";
@@ -36,7 +29,7 @@ export function VoiceAssistant() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isError, setIsError] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(
-    null
+    null,
   );
 
   // Conversation history for Gemini context
@@ -78,7 +71,10 @@ export function VoiceAssistant() {
           }),
         });
 
-        const data = (await response.json()) as { answer?: string; error?: string };
+        const data = (await response.json()) as {
+          answer?: string;
+          error?: string;
+        };
 
         if (!response.ok || !data.answer) {
           throw new Error(data.error ?? "Unexpected error from server.");
@@ -105,7 +101,10 @@ export function VoiceAssistant() {
         // Speak the answer
         speak(data.answer);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "Something went wrong. Please try again.";
         setErrorBanner(msg);
         setIsError(true);
         setTimeout(() => setIsError(false), 3000);
@@ -113,14 +112,14 @@ export function VoiceAssistant() {
         setIsProcessing(false);
       }
     },
-    [isProcessing, speak, stop]
+    [isProcessing, speak, stop],
   );
 
   const handleSpeechResult = useCallback(
     (transcript: string) => {
       submitQuestion(transcript);
     },
-    [submitQuestion]
+    [submitQuestion],
   );
 
   const handleSpeechError = useCallback((error: string) => {
@@ -129,22 +128,27 @@ export function VoiceAssistant() {
     setTimeout(() => setIsError(false), 2000);
   }, []);
 
-  const { isSupported, isListening, interimTranscript, startListening, stopListening } =
-    useSpeechRecognition({
-      onResult: handleSpeechResult,
-      onError: handleSpeechError,
-    });
+  const {
+    isSupported,
+    isListening,
+    interimTranscript,
+    startListening,
+    stopListening,
+  } = useSpeechRecognition({
+    onResult: handleSpeechResult,
+    onError: handleSpeechError,
+  });
 
   // Derive appState cleanly without cascading setState effects
   const appState: AppState = isError
     ? "error"
     : isListening
-    ? "listening"
-    : isProcessing
-    ? "processing"
-    : isSpeaking
-    ? "speaking"
-    : "idle";
+      ? "listening"
+      : isProcessing
+        ? "processing"
+        : isSpeaking
+          ? "speaking"
+          : "idle";
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -159,20 +163,27 @@ export function VoiceAssistant() {
     } else if (!isProcessing) {
       startListening();
     }
-  }, [isListening, isSpeaking, isProcessing, startListening, stopListening, stop]);
+  }, [
+    isListening,
+    isSpeaking,
+    isProcessing,
+    startListening,
+    stopListening,
+    stop,
+  ]);
 
   const handleTextSubmit = useCallback(
     (q: string) => {
       submitQuestion(q);
     },
-    [submitQuestion]
+    [submitQuestion],
   );
 
   const handleSuggestion = useCallback(
     (q: string) => {
       submitQuestion(q);
     },
-    [submitQuestion]
+    [submitQuestion],
   );
 
   const handleSpeak = useCallback(
@@ -180,7 +191,7 @@ export function VoiceAssistant() {
       setSpeakingMessageId(msgId);
       speak(content);
     },
-    [speak]
+    [speak],
   );
 
   const handleStop = useCallback(() => {
@@ -193,7 +204,9 @@ export function VoiceAssistant() {
   }, [replay]);
 
   const isDisabled = appState === "processing";
-  const lastAssistantMsg = [...messages].reverse().find((m) => m.role === "assistant");
+  const lastAssistantMsg = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant");
 
   return (
     <div
@@ -214,7 +227,10 @@ export function VoiceAssistant() {
               AI Voice Assistant · Engineering Interview Demo
             </p>
           </div>
-          <nav className="flex items-center gap-2" aria-label="Shubham's profiles">
+          <nav
+            className="flex items-center gap-2"
+            aria-label="Shubham's profiles"
+          >
             {[
               {
                 href: "https://shubhamnagar234.vercel.app/",
@@ -260,7 +276,7 @@ export function VoiceAssistant() {
           role="note"
           aria-label="AI disclaimer"
         >
-          <span className="text-blue-400 mt-0.5 flex-shrink-0" aria-hidden="true">
+          <span className="text-blue-400 mt-0.5 shrink-0" aria-hidden="true">
             ℹ️
           </span>
           <p className="text-xs text-slate-400 leading-relaxed">
@@ -278,12 +294,16 @@ export function VoiceAssistant() {
             aria-live="assertive"
             className="flex items-start gap-3 px-4 py-3 rounded-xl border border-red-800/60 bg-red-900/20 text-red-300 text-sm animate-fade-in"
           >
-            <AlertCircle size={16} className="flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <AlertCircle
+              size={16}
+              className="shrink-0 mt-0.5"
+              aria-hidden="true"
+            />
             <span className="flex-1">{errorBanner}</span>
             <button
               onClick={() => setErrorBanner(null)}
               aria-label="Dismiss error"
-              className="flex-shrink-0 text-red-400 hover:text-red-200"
+              className="shrink-0 text-red-400 hover:text-red-200"
             >
               <X size={14} />
             </button>
@@ -305,7 +325,7 @@ export function VoiceAssistant() {
           {(interimTranscript || isListening) && (
             <p
               aria-live="polite"
-              className="text-sm text-slate-400 italic text-center mt-2 max-w-md animate-fade-in min-h-[1.25rem]"
+              className="text-sm text-slate-400 italic text-center mt-2 max-w-md animate-fade-in min-h-5"
             >
               {interimTranscript || "Listening…"}
             </p>
@@ -314,7 +334,7 @@ export function VoiceAssistant() {
 
         {/* ── Chat area ───────────────────────────────────────────── */}
         <section
-          className="glass-card rounded-2xl p-4 flex flex-col gap-3 min-h-[200px]"
+          className="glass-card rounded-2xl p-4 flex flex-col gap-3 min-h-50"
           aria-label="Conversation"
           aria-live="polite"
           aria-relevant="additions"
@@ -341,7 +361,7 @@ export function VoiceAssistant() {
               className="flex gap-3 animate-fade-in"
               aria-label="Processing your question"
             >
-              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-violet-600">
+              <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-linear-to-br from-blue-600 to-violet-600">
                 <span className="text-xs font-bold text-white">AI</span>
               </div>
               <div className="glass-card rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1">
