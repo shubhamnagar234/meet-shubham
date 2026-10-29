@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
+import { Groq } from "groq-sdk";
 import { buildSystemInstruction } from "@/app/data/shubhamProfile";
 import {
   matchFallbackAnswer,
   UNRECOGNIZED_FALLBACK_MESSAGE,
 } from "@/app/data/fallbackAnswers";
+import type { MessageProvider, MessageSource } from "@/app/types";
 
-// ── Rate limiting (in-memory sliding window, resets per cold start) ──────────
+// ── Rate Limiting (in-memory sliding window, resets per cold start) ──────────
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 30;
 const ipRequests = new Map<string, { count: number; windowStart: number }>();
@@ -23,10 +25,29 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
-// ── Model Quota Cooldown Tracker (Prevents repeated 429 calls) ───────────────
-// Models that return 429 RESOURCE_EXHAUSTED are put in cooldown for 15 minutes.
-const MODEL_COOLDOWN_MS = 15 * 60_000;
+// ── Gemini Circuit Breaker & Cooldown Tracker ────────────────────────────────
+// When Gemini hits HTTP 429 / RESOURCE_EXHAUSTED, cooldown is activated for
+// 10 minutes so subsequent calls immediately skip to Groq without incurring latency.
+const CIRCUIT_BREAKER_COOLDOWN_MS = 10 * 60_000;
+let geminiCircuitBreakerUntil = 0;
 const modelCooldowns = new Map<string, number>();
+
+function isGeminiCooledDown(): boolean {
+  if (geminiCircuitBreakerUntil > Date.now()) {
+    return true;
+  }
+  if (geminiCircuitBreakerUntil !== 0) {
+    geminiCircuitBreakerUntil = 0; // reset once expired
+  }
+  return false;
+}
+
+function tripGeminiCircuitBreaker(): void {
+  geminiCircuitBreakerUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
+  console.warn(
+    `[Circuit Breaker] Gemini quota exhausted. Tripped circuit breaker for ${CIRCUIT_BREAKER_COOLDOWN_MS / 60_000} minutes. Routing to Groq.`,
+  );
+}
 
 function isModelCooledDown(modelId: string): boolean {
   const cooldownUntil = modelCooldowns.get(modelId);
@@ -39,62 +60,125 @@ function isModelCooledDown(modelId: string): boolean {
 }
 
 function markModelExhausted(modelId: string): void {
-  modelCooldowns.set(modelId, Date.now() + MODEL_COOLDOWN_MS);
+  modelCooldowns.set(modelId, Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS);
 }
 
-// ── Optional Second Provider Fallback (e.g. OpenAI / Groq) ───────────────────
-// Non-breaking: Only invoked if SECOND_PROVIDER_API_KEY or OPENAI_API_KEY is set.
-async function callSecondProviderIfConfigured(
+// ── Helper: Timeout Wrapper for Promises ──────────────────────────────────────
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  timeoutErrorMsg: string,
+): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(timeoutErrorMsg)), ms);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() =>
+    clearTimeout(timer),
+  );
+}
+
+// ── Secondary Provider: Groq Official SDK ─────────────────────────────────────
+async function callGroqProvider(
   question: string,
   systemInstruction: string,
   history: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }>,
 ): Promise<string | null> {
-  const apiKey =
-    process.env.SECOND_PROVIDER_API_KEY || process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
-  const endpoint =
-    process.env.SECOND_PROVIDER_ENDPOINT ||
-    "https://api.openai.com/v1/chat/completions";
-  const model =
-    process.env.SECOND_PROVIDER_MODEL ||
-    (process.env.OPENAI_API_KEY ? "gpt-4o-mini" : "default");
-
-  const messages = [
-    { role: "system", content: systemInstruction },
-    ...history.map((turn) => ({
-      role: turn.role === "model" ? "assistant" : "user",
-      content: turn.parts.map((p) => p.text).join(" "),
-    })),
-    { role: "user", content: question },
-  ];
-
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
-
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: 400,
-        temperature: 0.7,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.choices?.[0]?.message?.content?.trim() ?? null;
-  } catch {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey || !apiKey.trim()) {
     return null;
   }
+
+  try {
+    const groq = new Groq({ apiKey: apiKey.trim() });
+    const configuredModel =
+      process.env.GROQ_MODEL?.trim() || "openai/gpt-oss-20b";
+
+    // Fallback list of resilient Groq models if the configured one fails
+    const candidateModels = Array.from(
+      new Set([
+        configuredModel,
+        "llama-3.3-70b-versatile",
+        "qwen/qwen3.8-27b",
+        "llama-3.1-8b-instant",
+      ]),
+    );
+
+    const messages: Array<{
+      role: "system" | "user" | "assistant";
+      content: string;
+    }> = [
+      { role: "system", content: systemInstruction },
+      ...history.map((turn) => ({
+        role:
+          turn.role === "model" ? ("assistant" as const) : ("user" as const),
+        content: turn.parts.map((p) => p.text).join(" "),
+      })),
+      { role: "user", content: question },
+    ];
+
+    for (const model of candidateModels) {
+      try {
+        const response = await groq.chat.completions.create(
+          {
+            model,
+            messages,
+            // 800 tokens to ensure thinking/reasoning models (like gpt-oss-20b) have enough space for final content
+            max_tokens: 800,
+            temperature: 0.2,
+          },
+          { timeout: 7000 },
+        );
+
+        const answer = response.choices?.[0]?.message?.content?.trim();
+        if (answer) {
+          console.info(`[Provider selected]: groq (model: ${model})`);
+          return answer;
+        }
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const isAuthError =
+          errMsg.includes("401") ||
+          errMsg.toLowerCase().includes("invalid api key") ||
+          errMsg.toLowerCase().includes("unauthorized");
+
+        console.warn(`[Groq fallback model error] (${model}):`, errMsg);
+
+        // If credentials are invalid, avoid looping through other models with the same bad key
+        if (isAuthError) {
+          break;
+        }
+      }
+    }
+
+    return null;
+  } catch (clientErr: unknown) {
+    const errMsg =
+      clientErr instanceof Error ? clientErr.message : String(clientErr);
+    console.warn("[Groq client initialization error]:", errMsg);
+    return null;
+  }
+}
+
+// ── Standard Response Helper ──────────────────────────────────────────────────
+function buildResponse(
+  answer: string,
+  provider: MessageProvider,
+  fallbackUsed: boolean,
+  isFallback: boolean,
+  source: MessageSource,
+  status = 200,
+) {
+  return NextResponse.json(
+    {
+      answer,
+      provider,
+      fallbackUsed,
+      isFallback,
+      source,
+    },
+    { status },
+  );
 }
 
 // ── Main Route Handler ────────────────────────────────────────────────────────
@@ -151,6 +235,7 @@ export async function POST(req: NextRequest) {
     role: "user" | "model";
     parts: Array<{ text: string }>;
   }> = [];
+
   if (Array.isArray(history)) {
     const recent = history.slice(-6);
     for (const turn of recent) {
@@ -181,27 +266,26 @@ export async function POST(req: NextRequest) {
   }
 
   const systemInstruction = buildSystemInstruction();
-  const apiKey = process.env.GEMINI_API_KEY;
+  const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
 
-  // 4. Try Google Gemini (if API key is present and models are not exhausted)
-  if (apiKey) {
+  // ── PRIORITY 1: GOOGLE GEMINI (PRIMARY) ────────────────────────────────────
+  if (geminiApiKey && !isGeminiCooledDown()) {
     const candidateModels = Array.from(
       new Set(
         [
-          process.env.GEMINI_MODEL,
+          process.env.GEMINI_MODEL?.trim(),
+          "gemini-2.5-flash",
           "gemini-3.5-flash",
           "gemini-3-flash-preview",
           "gemini-3.5-flash-lite",
-          "gemini-2.5-flash",
         ].filter(Boolean) as string[],
       ),
     );
 
     try {
-      const client = new GoogleGenAI({ apiKey });
+      const client = new GoogleGenAI({ apiKey: geminiApiKey });
 
       for (const modelId of candidateModels) {
-        // Skip models currently in 429 cooldown
         if (isModelCooledDown(modelId)) {
           continue;
         }
@@ -211,16 +295,15 @@ export async function POST(req: NextRequest) {
           const config: Record<string, unknown> = {
             systemInstruction,
             maxOutputTokens: 800,
-            temperature: 0.7,
+            temperature: 0.2,
           };
 
-          // Reasoning/flash models use thinkingBudget: 0 to prevent answer truncation
-          // Lite models reject thinkingConfig with 400 INVALID_ARGUMENT
+          // Flash/reasoning models use thinkingBudget: 0 to avoid answer cutoff
           if (!isLite) {
             config.thinkingConfig = { thinkingBudget: 0 };
           }
 
-          const response = await client.models.generateContent({
+          const generatePromise = client.models.generateContent({
             model: modelId,
             contents: [
               ...safeHistory,
@@ -229,71 +312,77 @@ export async function POST(req: NextRequest) {
             config,
           });
 
+          // 7000ms timeout on primary Gemini call
+          const response = await withTimeout(
+            generatePromise,
+            7000,
+            `Gemini request timed out on model ${modelId}`,
+          );
+
           const answer =
             response.text?.trim() ??
             response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ??
             "";
 
           if (answer) {
-            return NextResponse.json({
-              answer,
-              isFallback: false,
-              source: "live_ai",
-            });
+            console.info(`[Provider selected]: gemini (model: ${modelId})`);
+            return buildResponse(answer, "gemini", false, false, "live_ai");
           }
-        } catch (modelErr) {
+        } catch (modelErr: unknown) {
           const errMsg =
             modelErr instanceof Error ? modelErr.message : String(modelErr);
 
-          // Detect HTTP 429 quota exhaustion and put model in cooldown
-          if (
-            errMsg.includes("RESOURCE_EXHAUSTED") ||
-            errMsg.includes("429")
-          ) {
+          console.warn(`[Gemini model failure] (${modelId}):`, errMsg);
+
+          // Detect HTTP 429 quota exhaustion and trip circuit breaker
+          if (errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("429")) {
             markModelExhausted(modelId);
-            console.warn(
-              `Model ${modelId} hit rate/quota limit. Marked in cooldown.`,
-            );
-          } else {
-            console.warn(`Model ${modelId} failed: ${errMsg}`);
+            tripGeminiCircuitBreaker();
+            break; // Stop attempting other Gemini models once quota is exhausted
           }
         }
       }
-    } catch (clientErr) {
-      console.warn("Gemini client initialization error:", clientErr);
+    } catch (clientErr: unknown) {
+      console.warn(
+        "[Gemini client error]:",
+        clientErr instanceof Error ? clientErr.message : String(clientErr),
+      );
     }
   }
 
-  // 5. Try Optional Second Provider (if configured, e.g. OpenAI)
-  const secondProviderAnswer = await callSecondProviderIfConfigured(
+  // ── PRIORITY 2: GROQ (SECONDARY AUTOMATIC FALLBACK) ────────────────────────
+  const groqAnswer = await callGroqProvider(
     trimmedQuestion,
     systemInstruction,
     safeHistory,
   );
-  if (secondProviderAnswer) {
-    return NextResponse.json({
-      answer: secondProviderAnswer,
-      isFallback: false,
-      source: "live_ai",
-    });
+
+  if (groqAnswer) {
+    return buildResponse(groqAnswer, "groq", true, false, "live_ai");
   }
 
-  // 6. Reliable Local Fallback Answer Bank
-  // When live AI is rate-limited or unavailable:
-  // - If the question matches one of the 10 core questions, return the prepared verified answer.
-  // - If unrecognized, return a helpful notice recommending the 10 prepared questions.
+  // ── PRIORITY 3: LOCAL PREPARED-ANSWER BANK (LAST RESORT) ───────────────────
+  // When live providers are rate-limited, offline, or unavailable:
+  // - Matches one of the 10 core interview questions or quick facts deterministically.
+  // - If unrecognized, returns an honest transparent notice without fabricating.
   const matchedItem = matchFallbackAnswer(trimmedQuestion);
   if (matchedItem) {
-    return NextResponse.json({
-      answer: matchedItem.answer,
-      isFallback: true,
-      source: "fallback_bank",
-    });
+    console.info(`[Provider selected]: local (matched: ${matchedItem.id})`);
+    return buildResponse(
+      matchedItem.answer,
+      "local",
+      true,
+      true,
+      "fallback_bank",
+    );
   }
 
-  return NextResponse.json({
-    answer: UNRECOGNIZED_FALLBACK_MESSAGE,
-    isFallback: true,
-    source: "offline_notice",
-  });
+  console.info("[Provider selected]: local (unrecognized offline notice)");
+  return buildResponse(
+    UNRECOGNIZED_FALLBACK_MESSAGE,
+    "local",
+    true,
+    true,
+    "offline_notice",
+  );
 }

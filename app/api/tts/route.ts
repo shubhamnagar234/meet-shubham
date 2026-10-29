@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
-import { normalizeForSpeech } from "@/app/utils/speechNormalizer";
+import { normalizeForSpeech } from "@/lib/speech/pronunciation";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -12,6 +12,10 @@ export async function GET(req: NextRequest) {
 
   // Bound text to prevent abuse and normalize for accurate pronunciation
   const safeText = normalizeForSpeech(text.slice(0, 1500));
+  if (!safeText) {
+    return new NextResponse("Empty text after normalization", { status: 400 });
+  }
+
   const voice = process.env.TTS_VOICE || "en-IN-PrabhatNeural";
 
   try {
@@ -20,13 +24,27 @@ export async function GET(req: NextRequest) {
     const { audioStream } = tts.toStream(safeText);
 
     const chunks: Buffer[] = [];
+
     return await new Promise<Response>((resolve, reject) => {
+      // 8-second safety timeout prevents hanging connections
+      const timeout = setTimeout(() => {
+        reject(new Error("Neural TTS audio generation timed out after 8000ms"));
+      }, 8000);
+
       audioStream.on("data", (chunk: Buffer) => {
         chunks.push(chunk);
       });
 
       audioStream.on("end", () => {
+        clearTimeout(timeout);
         const buffer = Buffer.concat(chunks);
+
+        // Guard against truncated or zero-byte audio streams
+        if (buffer.length === 0) {
+          reject(new Error("Empty audio buffer returned from neural TTS"));
+          return;
+        }
+
         resolve(
           new Response(new Uint8Array(buffer), {
             status: 200,
@@ -41,12 +59,16 @@ export async function GET(req: NextRequest) {
       });
 
       audioStream.on("error", (err: unknown) => {
+        clearTimeout(timeout);
         reject(err);
       });
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.stack || err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
     console.error("Neural TTS generation error:", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json(
+      { error: msg, fallback: "webspeech" },
+      { status: 502 },
+    );
   }
 }

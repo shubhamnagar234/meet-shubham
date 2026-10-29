@@ -33,7 +33,11 @@ html {
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-family:
+    var(--font-inter),
+    system-ui,
+    -apple-system,
+    sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
 }
@@ -68,7 +72,8 @@ body {
 
 /* Mic button pulse animation */
 @keyframes mic-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4);
   }
   50% {
@@ -77,7 +82,8 @@ body {
 }
 
 @keyframes mic-pulse-idle {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.3);
   }
   50% {
@@ -86,7 +92,8 @@ body {
 }
 
 @keyframes speaking-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
   }
   50% {
@@ -96,8 +103,13 @@ body {
 
 /* Waveform bars */
 @keyframes wave-bar {
-  0%, 100% { transform: scaleY(0.2); }
-  50% { transform: scaleY(1); }
+  0%,
+  100% {
+    transform: scaleY(0.2);
+  }
+  50% {
+    transform: scaleY(1);
+  }
 }
 
 /* Fade in */
@@ -114,14 +126,23 @@ body {
 
 /* Shimmer loading */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 /* Gradient background animation */
 @keyframes bg-shift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 .animate-fade-in {
@@ -158,13 +179,27 @@ body {
 
 /* Loading dots */
 @keyframes loading-dot {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-  40% { transform: scale(1); opacity: 1; }
+  0%,
+  80%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
-.loading-dot:nth-child(1) { animation: loading-dot 1.2s 0s infinite; }
-.loading-dot:nth-child(2) { animation: loading-dot 1.2s 0.2s infinite; }
-.loading-dot:nth-child(3) { animation: loading-dot 1.2s 0.4s infinite; }
+.loading-dot:nth-child(1) {
+  animation: loading-dot 1.2s 0s infinite;
+}
+.loading-dot:nth-child(2) {
+  animation: loading-dot 1.2s 0.2s infinite;
+}
+.loading-dot:nth-child(3) {
+  animation: loading-dot 1.2s 0.4s infinite;
+}
 
 /* Suggested question chips hover */
 .suggestion-chip {
@@ -191,17 +226,64 @@ body {
   border-radius: 2px;
   transform-origin: bottom;
 }
-.wave-bar:nth-child(1) { animation: wave-bar 0.8s 0.0s ease-in-out infinite; }
-.wave-bar:nth-child(2) { animation: wave-bar 0.8s 0.1s ease-in-out infinite; }
-.wave-bar:nth-child(3) { animation: wave-bar 0.8s 0.2s ease-in-out infinite; }
-.wave-bar:nth-child(4) { animation: wave-bar 0.8s 0.15s ease-in-out infinite; }
-.wave-bar:nth-child(5) { animation: wave-bar 0.8s 0.05s ease-in-out infinite; }
-.wave-bar:nth-child(6) { animation: wave-bar 0.8s 0.25s ease-in-out infinite; }
-.wave-bar:nth-child(7) { animation: wave-bar 0.8s 0.1s ease-in-out infinite; }
+.wave-bar:nth-child(1) {
+  animation: wave-bar 0.8s 0s ease-in-out infinite;
+}
+.wave-bar:nth-child(2) {
+  animation: wave-bar 0.8s 0.1s ease-in-out infinite;
+}
+.wave-bar:nth-child(3) {
+  animation: wave-bar 0.8s 0.2s ease-in-out infinite;
+}
+.wave-bar:nth-child(4) {
+  animation: wave-bar 0.8s 0.15s ease-in-out infinite;
+}
+.wave-bar:nth-child(5) {
+  animation: wave-bar 0.8s 0.05s ease-in-out infinite;
+}
+.wave-bar:nth-child(6) {
+  animation: wave-bar 0.8s 0.25s ease-in-out infinite;
+}
+.wave-bar:nth-child(7) {
+  animation: wave-bar 0.8s 0.1s ease-in-out infinite;
+}
 
 /* Smooth shimmer for loading */
 .shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.1) 50%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(59, 130, 246, 0.1) 50%,
+    transparent 100%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
+
+/* Custom scrollbar for fixed-height chat container */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.4) rgba(15, 23, 42, 0.4);
+  scrollbar-gutter: stable;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(13, 20, 33, 0.5);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.35);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.65);
+}
+
+/* Word wrapping utility */
+.wrap-break-word {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+

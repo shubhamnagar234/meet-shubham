@@ -2,6 +2,8 @@ export type MessageRole = "user" | "assistant";
 
 export type MessageSource = "live_ai" | "fallback_bank" | "offline_notice";
 
+export type MessageProvider = "gemini" | "groq" | "local";
+
 export interface Message {
   id: string;
   role: MessageRole;
@@ -9,6 +11,8 @@ export interface Message {
   timestamp: Date;
   isFallback?: boolean;
   source?: MessageSource;
+  provider?: MessageProvider;
+  fallbackUsed?: boolean;
 }
 
 export type AppState =

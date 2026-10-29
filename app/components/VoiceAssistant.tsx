@@ -5,7 +5,6 @@ import { Code2, Users, Globe, BookOpen, AlertCircle, X } from "lucide-react";
 import { Message, AppState, ConversationTurn } from "../types";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { useSpeechSynthesis } from "../hooks/useSpeechSynthesis";
-import { MicButton } from "../components/MicButton";
 import { ChatMessage } from "../components/ChatMessage";
 import { SuggestedQuestions } from "../components/SuggestedQuestions";
 import { TextInput } from "../components/TextInput";
@@ -34,6 +33,7 @@ export function VoiceAssistant() {
 
   // Conversation history for Gemini context
   const historyRef = useRef<ConversationTurn[]>([]);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastAssistantMessageRef = useRef<string | null>(null);
 
@@ -76,6 +76,8 @@ export function VoiceAssistant() {
           error?: string;
           isFallback?: boolean;
           source?: Message["source"];
+          provider?: Message["provider"];
+          fallbackUsed?: boolean;
         };
 
         if (!response.ok || !data.answer) {
@@ -89,6 +91,8 @@ export function VoiceAssistant() {
           timestamp: new Date(),
           isFallback: data.isFallback,
           source: data.source,
+          provider: data.provider,
+          fallbackUsed: data.fallbackUsed,
         };
 
         setMessages((prev) => [...prev, assistantMsg]);
@@ -154,10 +158,40 @@ export function VoiceAssistant() {
           ? "speaking"
           : "idle";
 
-  // Auto-scroll to bottom
+  // Auto-scroll inside the chat container so the current question and the start
+  // of the answer are visible from line 1 instead of skipping past to the end
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!chatContainerRef.current || messages.length <= 1) return;
+
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg) return;
+
+    // Anchor to the latest user question in this turn, so both the question
+    // and the complete answer are visible from the very beginning
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    const targetId = lastUserMsg?.id || lastMsg.id;
+
+    // Delay with requestAnimationFrame so the browser finishes rendering the message content
+    requestAnimationFrame(() => {
+      const targetEl = document.getElementById(`msg-${targetId}`);
+      const container = chatContainerRef.current;
+
+      if (targetEl && container) {
+        const containerRect = container.getBoundingClientRect();
+        const targetRect = targetEl.getBoundingClientRect();
+        const currentScrollTop = container.scrollTop;
+
+        // Position target question/answer at the top of the chat container
+        const targetScrollTop =
+          currentScrollTop + (targetRect.top - containerRect.top) - 10;
+
+        container.scrollTo({
+          top: Math.max(0, targetScrollTop),
+          behavior: "smooth",
+        });
+      }
+    });
+  }, [messages, isProcessing]);
 
   const handleMicClick = useCallback(() => {
     if (isListening) {
@@ -222,7 +256,7 @@ export function VoiceAssistant() {
     >
       {/* ── Header ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 border-b border-slate-800/60 backdrop-blur-md bg-slate-900/50">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold gradient-text leading-tight">
               Meet Shubham
@@ -273,21 +307,22 @@ export function VoiceAssistant() {
       </header>
 
       {/* ── Main content ───────────────────────────────────────────── */}
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6 flex flex-col gap-6">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-3 sm:px-4 py-2.5 sm:py-4 flex flex-col gap-2.5 sm:gap-3.5">
         {/* AI disclaimer */}
         <div
-          className="glass-card rounded-xl px-4 py-3 flex items-start gap-3 border-blue-900/40"
+          className="glass-card rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 flex items-center gap-2 sm:gap-3 border-blue-900/40 shrink-0 text-[11px] sm:text-xs text-slate-400"
           role="note"
           aria-label="AI disclaimer"
         >
-          <span className="text-blue-400 mt-0.5 shrink-0" aria-hidden="true">
+          <span
+            className="text-blue-400 shrink-0 text-xs sm:text-sm"
+            aria-hidden="true"
+          >
             ℹ️
           </span>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            <strong className="text-slate-300">This is an AI assistant</strong>{" "}
-            representing Shubham Nagar — not a live conversation with Shubham.
-            It answers questions based on verified background information and
-            uses Google Gemini to generate responses.
+          <p className="leading-snug truncate sm:whitespace-normal">
+            <strong className="text-slate-300">Meet Shubham</strong>: Verified
+            AI assistant representing Shubham Nagar for 100x Engineering.
           </p>
         </div>
 
@@ -296,10 +331,10 @@ export function VoiceAssistant() {
           <div
             role="alert"
             aria-live="assertive"
-            className="flex items-start gap-3 px-4 py-3 rounded-xl border border-red-800/60 bg-red-900/20 text-red-300 text-sm animate-fade-in"
+            className="flex items-start gap-3 px-3.5 py-2.5 rounded-xl border border-red-800/60 bg-red-900/20 text-red-300 text-xs sm:text-sm animate-fade-in shrink-0"
           >
             <AlertCircle
-              size={16}
+              size={15}
               className="shrink-0 mt-0.5"
               aria-hidden="true"
             />
@@ -314,31 +349,12 @@ export function VoiceAssistant() {
           </div>
         )}
 
-        {/* ── Mic section ─────────────────────────────────────────── */}
+        {/* ── Chat area (Responsive expanded height & start-anchored scrolling) ─── */}
         <section
-          className="glass-card rounded-2xl p-6 flex flex-col items-center gap-2"
-          aria-label="Voice input"
-        >
-          <MicButton
-            state={appState}
-            isSupported={isSupported}
-            onClick={handleMicClick}
-          />
-
-          {/* Interim transcript */}
-          {(interimTranscript || isListening) && (
-            <p
-              aria-live="polite"
-              className="text-sm text-slate-400 italic text-center mt-2 max-w-md animate-fade-in min-h-5"
-            >
-              {interimTranscript || "Listening…"}
-            </p>
-          )}
-        </section>
-
-        {/* ── Chat area ───────────────────────────────────────────── */}
-        <section
-          className="glass-card rounded-2xl p-4 flex flex-col gap-3 min-h-50"
+          ref={chatContainerRef}
+          tabIndex={0}
+          style={{ height: "clamp(340px, 56vh, 600px)" }}
+          className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col gap-2.5 sm:gap-3 overflow-y-auto scroll-smooth custom-scrollbar focus:outline-none relative"
           aria-label="Conversation"
           aria-live="polite"
           aria-relevant="additions"
@@ -347,15 +363,16 @@ export function VoiceAssistant() {
             const isLastAssistant =
               msg.role === "assistant" && lastAssistantMsg?.id === msg.id;
             return (
-              <ChatMessage
-                key={msg.id}
-                message={msg}
-                isSpeaking={isSpeaking && speakingMessageId === msg.id}
-                isLastAssistant={isLastAssistant}
-                onSpeak={() => handleSpeak(msg.id, msg.content)}
-                onStop={handleStop}
-                onReplay={handleReplay}
-              />
+              <div key={msg.id} id={`msg-${msg.id}`} className="w-full">
+                <ChatMessage
+                  message={msg}
+                  isSpeaking={isSpeaking && speakingMessageId === msg.id}
+                  isLastAssistant={isLastAssistant}
+                  onSpeak={() => handleSpeak(msg.id, msg.content)}
+                  onStop={handleStop}
+                  onReplay={handleReplay}
+                />
+              </div>
             );
           })}
 
@@ -379,8 +396,8 @@ export function VoiceAssistant() {
           <div ref={messagesEndRef} />
         </section>
 
-        {/* ── Text input ──────────────────────────────────────────── */}
-        <section aria-label="Text input">
+        {/* ── Unified Input Dock (Text + Mic + Send + Live Audio Waveform) ── */}
+        <section aria-label="Ask a question" className="shrink-0">
           <TextInput
             value={inputText}
             onChange={setInputText}
@@ -389,13 +406,24 @@ export function VoiceAssistant() {
             placeholder={
               isListening
                 ? "Listening via microphone…"
-                : "Or type your question here (Enter to send)"
+                : "Ask Shubham anything, or tap mic to speak…"
             }
+            appState={appState}
+            isListening={isListening}
+            isSpeaking={isSpeaking}
+            interimTranscript={interimTranscript}
+            onMicClick={handleMicClick}
+            isSupported={isSupported}
           />
         </section>
 
         {/* ── Suggested questions ─────────────────────────────────── */}
-        <SuggestedQuestions onSelect={handleSuggestion} disabled={isDisabled} />
+        <div className="shrink-0">
+          <SuggestedQuestions
+            onSelect={handleSuggestion}
+            disabled={isDisabled}
+          />
+        </div>
       </main>
 
       {/* ── Footer ─────────────────────────────────────────────────── */}

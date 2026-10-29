@@ -54,13 +54,13 @@ export function SuggestedQuestions({
 }: SuggestedQuestionsProps) {
   return (
     <section aria-label="Suggested questions">
-      <div className="flex items-center gap-2 mb-3">
-        <MessageSquare size={14} className="text-blue-400" aria-hidden="true" />
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <MessageSquare size={13} className="text-blue-400" aria-hidden="true" />
+        <h2 className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
           Try asking
         </h2>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5 max-h-22 overflow-y-auto custom-scrollbar pr-1">
         {SUGGESTED_QUESTIONS.map((q) => (
           <button
             key={q.id}
@@ -69,8 +69,8 @@ export function SuggestedQuestions({
             disabled={disabled}
             className="
               suggestion-chip
-              flex items-center gap-1.5 px-3 py-1.5
-              text-xs text-slate-300
+              flex items-center gap-1.5 px-2.5 py-1
+              text-[11px] text-slate-300
               rounded-full border border-slate-700
               bg-slate-800/60 
               hover:border-blue-500 hover:text-white hover:bg-blue-950/50

@@ -8,6 +8,8 @@ interface MicButtonProps {
   state: AppState;
   isSupported: boolean;
   onClick: () => void;
+  showStatus?: boolean;
+  compact?: boolean;
 }
 
 const stateConfig = {
@@ -58,37 +60,75 @@ const stateConfig = {
   },
 };
 
-export function MicButton({ state, isSupported, onClick }: MicButtonProps) {
+export function MicButton({
+  state,
+  isSupported,
+  onClick,
+  showStatus = true,
+  compact = false,
+}: MicButtonProps) {
   const config = stateConfig[state];
   const Icon = config.icon;
   const isDisabled = state === "processing";
 
-  return (
-    <div className="flex flex-col items-center gap-4">
-      {/* Status text */}
-      <p
-        className="text-sm font-medium tracking-wide uppercase"
-        style={{
-          color:
-            state === "listening"
-              ? "#f97316"
-              : state === "speaking"
-                ? "#34d399"
-                : state === "error"
-                  ? "#ef4444"
-                  : state === "processing"
-                    ? "#a78bfa"
-                    : "#64748b",
-        }}
+  if (compact) {
+    return (
+      <button
+        id="mic-button"
+        type="button"
+        aria-label={config.label}
+        aria-pressed={state === "listening"}
+        disabled={isDisabled || !isSupported}
+        onClick={onClick}
+        title={!isSupported ? "Voice input isn't supported in this browser" : config.label}
+        className={`
+          relative w-12 h-12 rounded-xl flex items-center justify-center
+          transition-all duration-200 cursor-pointer shadow-md shrink-0
+          ${config.bg} ${config.pulse}
+          ring-2 ${config.ring}
+          disabled:opacity-40 disabled:cursor-not-allowed disabled:animation-none
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
+        `}
       >
-        {config.text}
-      </p>
+        <Icon
+          size={23}
+          className={`text-white ${state === "processing" ? "animate-spin" : ""}`}
+          strokeWidth={2}
+          aria-hidden="true"
+        />
+      </button>
+    );
+  }
 
-      {/* Waveform */}
-      <Waveform
-        isActive={state === "listening" || state === "speaking"}
-        color={config.waveColor}
-      />
+  return (
+    <div className="flex flex-col items-center gap-2">
+      {/* Status text & waveform (optional when embedded in voice bar) */}
+      {showStatus && (
+        <div className="flex items-center gap-2.5 min-h-5">
+          <p
+            className="text-xs font-semibold tracking-wider uppercase"
+            style={{
+              color:
+                state === "listening"
+                  ? "#f97316"
+                  : state === "speaking"
+                    ? "#34d399"
+                    : state === "error"
+                      ? "#ef4444"
+                      : state === "processing"
+                        ? "#a78bfa"
+                        : "#64748b",
+            }}
+          >
+            {config.text}
+          </p>
+
+          <Waveform
+            isActive={state === "listening" || state === "speaking"}
+            color={config.waveColor}
+          />
+        </div>
+      )}
 
       {/* Mic button */}
       <button
@@ -98,17 +138,17 @@ export function MicButton({ state, isSupported, onClick }: MicButtonProps) {
         disabled={isDisabled || !isSupported}
         onClick={onClick}
         className={`
-          relative w-20 h-20 rounded-full flex items-center justify-center
-          transition-all duration-300 cursor-pointer
+          relative w-12 h-12 sm:w-14 sm:h-14 md:w-15 md:h-15 rounded-full flex items-center justify-center
+          transition-all duration-300 cursor-pointer shadow-lg shrink-0
           ${config.bg} ${config.pulse}
-          ring-4 ${config.ring}
+          ring-3 sm:ring-4 ${config.ring}
           disabled:opacity-50 disabled:cursor-not-allowed disabled:animation-none
           focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-400
         `}
       >
         <Icon
-          size={32}
-          className={`text-white ${state === "processing" ? "animate-spin" : ""}`}
+          size={22}
+          className={`text-white sm:scale-110 ${state === "processing" ? "animate-spin" : ""}`}
           strokeWidth={1.8}
           aria-hidden="true"
         />

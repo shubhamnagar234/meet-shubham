@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useRef, useState, useEffect, useSyncExternalStore } from "react";
-import { normalizeForSpeech } from "../utils/speechNormalizer";
+import { normalizeForSpeech } from "@/lib/speech/pronunciation";
 
 const emptySubscribe = () => () => {};
+const SPEECH_RATE = 1.08; // ~8% boost for crisp, conversational interview cadence
 
 export interface UseSpeechSynthesisReturn {
   isSpeaking: boolean;
@@ -11,10 +12,12 @@ export interface UseSpeechSynthesisReturn {
   speak: (text: string) => void;
   stop: () => void;
   replay: () => void;
+  activeEngine: "neural" | "browser" | null;
 }
 
 export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [activeEngine, setActiveEngine] = useState<"neural" | "browser" | null>(null);
 
   const isSupported = useSyncExternalStore(
     emptySubscribe,
@@ -36,14 +39,16 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
     }
   }, []);
 
-  // Web Speech fallback in case server-side Neural TTS is unreachable
+  // Browser Web Speech fallback when server-side Neural TTS is unreachable or fails
   const fallbackWebSpeech = useCallback(
     (text: string) => {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) {
         setIsSpeaking(false);
+        setActiveEngine(null);
         return;
       }
 
+      // Ensure any previous synthesis is stopped
       window.speechSynthesis.cancel();
       clearResumeInterval();
 
@@ -51,7 +56,12 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
       utteranceRef.current = utterance;
 
       const voices = window.speechSynthesis.getVoices();
-      // Try to match Prabhat / en-IN first, then premium English voices
+
+      // Preferred voice ranking:
+      // 1. Exact match for Microsoft Prabhat / en-IN male natural voices
+      // 2. Any en-IN (Indian English) voice
+      // 3. High quality natural English voices (Google, Natural, Microsoft)
+      // 4. Default English voice
       const preferred =
         voices.find(
           (v) =>
@@ -59,6 +69,7 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
             (v.lang.toLowerCase().startsWith("en-in") &&
               !v.name.toLowerCase().includes("heera")),
         ) ||
+        voices.find((v) => v.lang.toLowerCase().startsWith("en-in")) ||
         voices.find(
           (v) =>
             v.lang.toLowerCase().startsWith("en") &&
@@ -75,16 +86,18 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
         utterance.lang = "en-IN";
       }
 
-      utterance.rate = 1.0;
+      utterance.rate = SPEECH_RATE;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
       utterance.onstart = () => {
         setIsSpeaking(true);
-        // Workaround for Chrome's speechSynthesis bug where audio pauses mid-sentence
+        setActiveEngine("browser");
+
+        // Workaround for Chrome/WebKit bug where long speech pauses mid-sentence
         clearResumeInterval();
         resumeIntervalRef.current = setInterval(() => {
-          if (window.speechSynthesis.paused) {
+          if (typeof window !== "undefined" && window.speechSynthesis.paused) {
             window.speechSynthesis.resume();
           }
         }, 4000);
@@ -92,11 +105,18 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
 
       utterance.onend = () => {
         setIsSpeaking(false);
+        setActiveEngine(null);
         clearResumeInterval();
       };
 
-      utterance.onerror = () => {
+      utterance.onerror = (event) => {
+        // Ignored when explicitly cancelled by stop()
+        if (event.error === "canceled" || event.error === "interrupted") {
+          return;
+        }
+        console.warn("Web Speech API playback encountered an error:", event.error);
         setIsSpeaking(false);
+        setActiveEngine(null);
         clearResumeInterval();
       };
 
@@ -106,12 +126,17 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
   );
 
   const stop = useCallback(() => {
-    // 1. Stop HTML5 Audio if playing Neural TTS
+    // 1. Stop and release HTML5 Audio if playing Neural TTS
     if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current.src = "";
-      audioRef.current = null;
+      const activeAudio = audioRef.current;
+      audioRef.current = null; // Detach ref first to prevent onerror loop
+      try {
+        activeAudio.pause();
+        activeAudio.currentTime = 0;
+        activeAudio.src = "";
+      } catch {
+        // Ignore abort teardown errors
+      }
     }
 
     // 2. Stop Web Speech synthesis if active
@@ -121,17 +146,21 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
 
     clearResumeInterval();
     setIsSpeaking(false);
+    setActiveEngine(null);
   }, [clearResumeInterval]);
 
   const speak = useCallback(
     (text: string) => {
+      if (!text) return;
+      lastTextRef.current = text;
+
+      // Stop any ongoing speech before starting new speech
+      stop();
+
       const cleaned = normalizeForSpeech(text);
       if (!cleaned) return;
 
-      lastTextRef.current = cleaned;
-      stop();
-
-      // Check if Audio API is available in browser
+      // Check if Audio API is supported in browser
       if (typeof Audio === "undefined") {
         fallbackWebSpeech(cleaned);
         return;
@@ -140,37 +169,43 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
       try {
         const audioUrl = `/api/tts?text=${encodeURIComponent(cleaned)}`;
         const audio = new Audio(audioUrl);
+        audio.playbackRate = SPEECH_RATE;
         audioRef.current = audio;
 
         audio.onplay = () => {
           setIsSpeaking(true);
+          setActiveEngine("neural");
         };
 
         audio.onended = () => {
-          setIsSpeaking(false);
           if (audioRef.current === audio) {
             audioRef.current = null;
+            setIsSpeaking(false);
+            setActiveEngine(null);
           }
         };
 
         audio.onerror = () => {
-          console.warn("Neural TTS request failed, falling back to Web Speech API.");
-          if (audioRef.current === audio) {
-            audioRef.current = null;
-          }
+          // If this audio element was already detached by stop(), ignore
+          if (audioRef.current !== audio) return;
+          audioRef.current = null;
+          console.warn("Neural TTS request failed or stream error, falling back to Web Speech API.");
           fallbackWebSpeech(cleaned);
         };
 
         const playPromise = audio.play();
         if (playPromise !== undefined) {
           playPromise.catch((err: unknown) => {
+            // If stopped or aborted, do not trigger fallback
+            if (audioRef.current !== audio) return;
+            const errName = (err as { name?: string })?.name;
+            if (errName === "AbortError") return;
+
+            audioRef.current = null;
             console.warn(
-              "Audio playback was prevented or encountered an error; falling back to Web Speech:",
+              "Audio playback was prevented; falling back to Web Speech:",
               err,
             );
-            if (audioRef.current === audio) {
-              audioRef.current = null;
-            }
             fallbackWebSpeech(cleaned);
           });
         }
@@ -195,5 +230,5 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
     };
   }, [stop]);
 
-  return { isSpeaking, isSupported, speak, stop, replay };
+  return { isSpeaking, isSupported, speak, stop, replay, activeEngine };
 }

@@ -24,24 +24,24 @@ export function ChatMessage({
 
   return (
     <div
-      className={`flex gap-3 animate-fade-in ${isUser ? "justify-end" : "justify-start"}`}
+      className={`flex gap-2 sm:gap-3 animate-fade-in ${isUser ? "justify-end" : "justify-start"}`}
     >
       {/* Avatar — assistant left */}
       {!isUser && (
         <div
-          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-linear-to-br from-blue-600 to-violet-600 ring-1 ring-blue-500/30"
+          className="shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-linear-to-br from-blue-600 to-violet-600 ring-1 ring-blue-500/30 mt-0.5"
           aria-hidden="true"
         >
-          <Bot size={16} className="text-white" strokeWidth={1.8} />
+          <Bot size={15} className="text-white" strokeWidth={1.8} />
         </div>
       )}
 
       <div
-        className={`flex flex-col gap-1 max-w-[85%] ${isUser ? "items-end" : "items-start"}`}
+        className={`flex flex-col gap-1 max-w-[92%] sm:max-w-[85%] ${isUser ? "items-end" : "items-start"}`}
       >
         <div
           className={`
-            relative px-4 py-3 rounded-2xl text-sm leading-relaxed
+            relative px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl text-xs sm:text-sm leading-relaxed wrap-break-word whitespace-pre-wrap
             ${
               isUser
                 ? "bg-blue-600 text-white rounded-tr-sm"
