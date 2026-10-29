@@ -8,11 +8,7 @@
  * factual metric preservation, and idempotency across all 10 approved answers.
  */
 
-import {
-  normalizeForSpeech,
-  isIdempotent,
-  PRONUNCIATION_DICTIONARY,
-} from "./pronunciation";
+import { normalizeForSpeech, isIdempotent } from "./pronunciation";
 import { APPROVED_FIRST_PERSON_ANSWERS } from "@/app/data/shubhamProfile";
 
 export interface PronunciationTestCase {
@@ -34,7 +30,10 @@ export interface PronunciationTestCase {
   description: string;
   input: string;
   expectedSpoken?: string;
-  assertFn?: (normalized: string, raw: string) => { pass: boolean; reason?: string };
+  assertFn?: (
+    normalized: string,
+    raw: string,
+  ) => { pass: boolean; reason?: string };
 }
 
 export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
@@ -62,12 +61,18 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "DICT-03",
     category: "dictionary_terms",
-    description: "B.Tech expands to Bachelors of Technology without duplicating Honours",
-    input: "I graduated with a B.Tech in Computer Science and Engineering with Honours.",
+    description:
+      "B.Tech expands to Bachelors of Technology without duplicating Honours",
+    input:
+      "I graduated with a B.Tech in Computer Science and Engineering with Honours.",
     assertFn: (norm) => ({
       pass:
-        norm.includes("Bachelors of Technology in Computer Science and Engineering with Honours") &&
-        !norm.includes("Honours in Computer Science and Engineering with Honours"),
+        norm.includes(
+          "Bachelors of Technology in Computer Science and Engineering with Honours",
+        ) &&
+        !norm.includes(
+          "Honours in Computer Science and Engineering with Honours",
+        ),
       reason: `Expected clean expansion without duplicate Honours, got: '${norm}'`,
     }),
   },
@@ -144,7 +149,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "DICT-11",
     category: "dictionary_terms",
-    description: "LangChain, LangGraph, Pinecone, and Qdrant are preserved naturally",
+    description:
+      "LangChain, LangGraph, Pinecone, and Qdrant are preserved naturally",
     input: "I used LangChain, LangGraph, Pinecone, and Qdrant in production.",
     assertFn: (norm) => ({
       pass:
@@ -199,7 +205,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
     id: "DICT-16",
     category: "dictionary_terms",
     description: "Judge0 normalizes to Judge Zero and Monaco Editor preserved",
-    input: "TokenHire uses Judge0 for sandbox execution and Monaco Editor for coding.",
+    input:
+      "TokenHire uses Judge0 for sandbox execution and Monaco Editor for coding.",
     assertFn: (norm) => ({
       pass: norm.includes("Judge Zero") && norm.includes("Monaco Editor"),
       reason: `Expected 'Judge Zero' and 'Monaco Editor', got: '${norm}'`,
@@ -234,8 +241,10 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "CASE-01",
     category: "case_sensitivity",
-    description: "Lowercase English words containing 'ai' are not mutated into A-I",
-    input: "I said that training the model requires daily maintenance against rain.",
+    description:
+      "Lowercase English words containing 'ai' are not mutated into A-I",
+    input:
+      "I said that training the model requires daily maintenance against rain.",
     assertFn: (norm) => ({
       pass:
         !norm.includes("sA-Id") &&
@@ -263,7 +272,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "CASE-03",
     category: "case_sensitivity",
-    description: "Lowercase 'skit' in theatrical context is not mutated into S-K-I-T",
+    description:
+      "Lowercase 'skit' in theatrical context is not mutated into S-K-I-T",
     input: "The students performed a comedy skit at the annual fest.",
     assertFn: (norm) => ({
       pass: norm.includes("comedy skit") && !norm.includes("comedy S-K-I-T"),
@@ -277,20 +287,27 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
     category: "complete_sentences",
     description: "Section 6 Example 1: SKIT Jaipur with 9.09 CGPA",
     input: "I graduated from SKIT Jaipur with a 9.09 CGPA.",
-    expectedSpoken: "I graduated from S-K-I-T Jaipur with a nine point zero nine C-G-P-A.",
-    assertFn: (norm, raw) => ({
-      pass: norm === "I graduated from S-K-I-T Jaipur with a nine point zero nine C-G-P-A.",
+    expectedSpoken:
+      "I graduated from S-K-I-T Jaipur with a nine point zero nine C-G-P-A.",
+    assertFn: (norm) => ({
+      pass:
+        norm ===
+        "I graduated from S-K-I-T Jaipur with a nine point zero nine C-G-P-A.",
       reason: `Exact match failure. Expected: 'I graduated from S-K-I-T Jaipur with a nine point zero nine C-G-P-A.', Got: '${norm}'`,
     }),
   },
   {
     id: "SENT-02",
     category: "complete_sentences",
-    description: "Section 6 Example 2: Ragentic with LangGraph, Qdrant, BM25, and RRF",
+    description:
+      "Section 6 Example 2: Ragentic with LangGraph, Qdrant, BM25, and RRF",
     input: "I built Ragentic using LangGraph, Qdrant, BM25, and RRF.",
-    expectedSpoken: "I built Ragentic using LangGraph, Qdrant, B-M twenty-five, and R-R-F.",
+    expectedSpoken:
+      "I built Ragentic using LangGraph, Qdrant, B-M twenty-five, and R-R-F.",
     assertFn: (norm) => ({
-      pass: norm === "I built Ragentic using LangGraph, Qdrant, B-M twenty-five, and R-R-F.",
+      pass:
+        norm ===
+        "I built Ragentic using LangGraph, Qdrant, B-M twenty-five, and R-R-F.",
       reason: `Exact match failure. Expected: 'I built Ragentic using LangGraph, Qdrant, B-M twenty-five, and R-R-F.', Got: '${norm}'`,
     }),
   },
@@ -298,7 +315,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
     id: "SENT-03",
     category: "complete_sentences",
     description: "Section 6 Example 3: TokenHire 259.62 ms median latency",
-    input: "TokenHire recorded 259.62 ms median latency in a mocked local benchmark.",
+    input:
+      "TokenHire recorded 259.62 ms median latency in a mocked local benchmark.",
     expectedSpoken:
       "TokenHire recorded two hundred fifty-nine point six two milliseconds median latency in a mocked local benchmark.",
     assertFn: (norm) => ({
@@ -324,7 +342,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
     id: "NUM-02",
     category: "numbers_and_decimals",
     description: "p95 metric expands to P-ninety-five",
-    input: "TokenHire recorded a p95 latency of 0.01 ms in isolated evaluation.",
+    input:
+      "TokenHire recorded a p95 latency of 0.01 ms in isolated evaluation.",
     assertFn: (norm) => ({
       pass:
         norm.includes("P-ninety-five") &&
@@ -358,7 +377,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "NUM-05",
     category: "numbers_and_decimals",
-    description: "1,000 without plus expands to one thousand (avoids one zero zero zero)",
+    description:
+      "1,000 without plus expands to one thousand (avoids one zero zero zero)",
     input: "The system scaled to 1,000 active students.",
     assertFn: (norm) => ({
       pass: norm.includes("one thousand active students"),
@@ -368,7 +388,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "NUM-06",
     category: "numbers_and_decimals",
-    description: "sub-3-second latency expands to under three seconds of latency",
+    description:
+      "sub-3-second latency expands to under three seconds of latency",
     input: "The course chatbot delivered sub-3-second latency.",
     assertFn: (norm) => ({
       pass: norm.includes("under three seconds of latency"),
@@ -400,7 +421,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "PUNCT-02",
     category: "punctuation_adjacency",
-    description: "Acronyms followed by commas, question marks, and exclamation marks",
+    description:
+      "Acronyms followed by commas, question marks, and exclamation marks",
     input: "Did you use CI/CD? Yes, with AWS, EC2, and S3!",
     assertFn: (norm) => ({
       pass:
@@ -426,8 +448,10 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "REPEAT-01",
     category: "repeated_terms",
-    description: "Multiple occurrences of SKIT in one answer all expand properly",
-    input: "I started at SKIT, graduated from SKIT Jaipur, and represented SKIT.",
+    description:
+      "Multiple occurrences of SKIT in one answer all expand properly",
+    input:
+      "I started at SKIT, graduated from SKIT Jaipur, and represented SKIT.",
     assertFn: (norm) => {
       const count = (norm.match(/S-K-I-T/g) || []).length;
       return {
@@ -444,7 +468,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
     assertFn: (norm) => {
       const aiCount = (norm.match(/A-I/g) || []).length;
       return {
-        pass: aiCount === 2 && norm.includes("L-L-M") && norm.includes("L-L-Ms"),
+        pass:
+          aiCount === 2 && norm.includes("L-L-M") && norm.includes("L-L-Ms"),
         reason: `Expected uniform expansions, got: '${norm}'`,
       };
     },
@@ -454,7 +479,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "GUARD-01",
     category: "harmful_substitutions_guard",
-    description: "Words containing 'api' like 'rapid' or 'capital' are untouched",
+    description:
+      "Words containing 'api' like 'rapid' or 'capital' are untouched",
     input: "Rapid capital investment enables tapping into APIs.",
     assertFn: (norm) => ({
       pass:
@@ -483,7 +509,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "DISP-01",
     category: "display_preservation",
-    description: "Speech normalization does not mutate the original string object",
+    description:
+      "Speech normalization does not mutate the original string object",
     input: "I built TokenHire with Next.js and Judge0.",
     assertFn: (norm, raw) => ({
       pass: raw === "I built TokenHire with Next.js and Judge0.",
@@ -522,7 +549,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "PROV-01",
     category: "provider_invariance",
-    description: "Normalizer output is strictly identical regardless of provider source",
+    description:
+      "Normalizer output is strictly identical regardless of provider source",
     input: "Ragentic uses LangGraph and BM25.",
     assertFn: (norm) => {
       const geminiSimulated = normalizeForSpeech(
@@ -542,7 +570,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "UNICODE-01",
     category: "unicode_and_apostrophes",
-    description: "Curly apostrophes, contractions, and em-dashes normalize cleanly",
+    description:
+      "Curly apostrophes, contractions, and em-dashes normalize cleanly",
     input:
       "I’m confident that Shubham’s experience—especially with AI—delivers results.",
     assertFn: (norm) => ({
@@ -557,7 +586,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "EMPTY-01",
     category: "unicode_and_apostrophes",
-    description: "Empty text and whitespace handle safely without runtime exceptions",
+    description:
+      "Empty text and whitespace handle safely without runtime exceptions",
     input: "   ",
     assertFn: (norm) => ({
       pass: norm === "",
@@ -569,15 +599,18 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "IDEMP-01",
     category: "idempotency_and_replay",
-    description: "Re-normalizing speech text on Replay produces identical result without double-hyphenation",
-    input: "I studied at SKIT Jaipur with a 9.09 CGPA and built Ragentic with BM25.",
+    description:
+      "Re-normalizing speech text on Replay produces identical result without double-hyphenation",
+    input:
+      "I studied at SKIT Jaipur with a 9.09 CGPA and built Ragentic with BM25.",
     assertFn: (norm) => {
       const pass = isIdempotent(
         "I studied at SKIT Jaipur with a 9.09 CGPA and built Ragentic with BM25.",
       );
       const secondPass = normalizeForSpeech(norm);
       return {
-        pass: pass && secondPass === norm && !secondPass.includes("S---K---I---T"),
+        pass:
+          pass && secondPass === norm && !secondPass.includes("S---K---I---T"),
         reason: `Idempotency failure! Re-normalization changed text: '${secondPass}'`,
       };
     },
@@ -587,12 +620,15 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "ANS-01",
     category: "approved_10_answers",
-    description: "Question 1 (Life Story) normalizes cleanly with all proper nouns and metrics",
+    description:
+      "Question 1 (Life Story) normalizes cleanly with all proper nouns and metrics",
     input: APPROVED_FIRST_PERSON_ANSWERS.lifeStory,
     assertFn: (norm) => ({
       pass:
         norm.includes("Full Stack A-I Engineer") &&
-        norm.includes("Bachelors of Technology in Computer Science and Engineering with Honours") &&
+        norm.includes(
+          "Bachelors of Technology in Computer Science and Engineering with Honours",
+        ) &&
         norm.includes("S-K-I-T Jaipur") &&
         norm.includes("nine point zero nine C-G-P-A") &&
         norm.includes("Three-I Academy Solutions") &&
@@ -604,7 +640,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "ANS-02",
     category: "approved_10_answers",
-    description: "Question 2 (Superpower) normalizes APIs and AI integrations cleanly",
+    description:
+      "Question 2 (Superpower) normalizes APIs and AI integrations cleanly",
     input: APPROVED_FIRST_PERSON_ANSWERS.superpower,
     assertFn: (norm) => ({
       pass: norm.includes("A-P-Is") && norm.includes("A-I"),
@@ -637,7 +674,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "ANS-05",
     category: "approved_10_answers",
-    description: "Question 5 (Comfort Zone) normalizes LangGraph, Qdrant, BM25, and LLM",
+    description:
+      "Question 5 (Comfort Zone) normalizes LangGraph, Qdrant, BM25, and LLM",
     input: APPROVED_FIRST_PERSON_ANSWERS.comfortZone,
     assertFn: (norm) => ({
       pass:
@@ -652,7 +690,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "ANS-06",
     category: "approved_10_answers",
-    description: "Question 6 (Proud Project) normalizes Next.js, Postgres, Judge Zero, and 259.62 milliseconds",
+    description:
+      "Question 6 (Proud Project) normalizes Next.js, Postgres, Judge Zero, and 259.62 milliseconds",
     input: APPROVED_FIRST_PERSON_ANSWERS.proudProject,
     assertFn: (norm) => ({
       pass:
@@ -666,10 +705,16 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "ANS-07",
     category: "approved_10_answers",
-    description: "Question 7 (AI Coding Agents) normalizes Antigravity and LangGraph",
+    description:
+      "Question 7 (AI Coding Agents) normalizes Antigravity, Cursor, Claude Code, OpenAI Codex, and LangGraph",
     input: APPROVED_FIRST_PERSON_ANSWERS.aiCodingAgentsWorkflow,
     assertFn: (norm) => ({
-      pass: norm.includes("Google Antigravity") && norm.includes("LangGraph"),
+      pass:
+        norm.includes("Google Antigravity") &&
+        norm.includes("Cursor") &&
+        norm.includes("Claude Code") &&
+        norm.includes("Open A-I Codex") &&
+        norm.includes("LangGraph"),
       reason: `Answer 7 speech normalization failed: '${norm.slice(0, 150)}...'`,
     }),
   },
@@ -686,7 +731,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "ANS-09",
     category: "approved_10_answers",
-    description: "Question 9 (Difficult Problem) normalizes LangChain, Pinecone, and sub-3-second latency",
+    description:
+      "Question 9 (Difficult Problem) normalizes LangChain, Pinecone, and sub-3-second latency",
     input: APPROVED_FIRST_PERSON_ANSWERS.difficultTechnicalProblem,
     assertFn: (norm) => ({
       pass:
@@ -699,7 +745,8 @@ export const PRONUNCIATION_TEST_CASES: PronunciationTestCase[] = [
   {
     id: "ANS-10",
     category: "approved_10_answers",
-    description: "Question 10 (Why Join AI Agent Team) normalizes LangGraph and Ragentic",
+    description:
+      "Question 10 (Why Join AI Agent Team) normalizes LangGraph and Ragentic",
     input: APPROVED_FIRST_PERSON_ANSWERS.whyJoinAiAgentTeam,
     assertFn: (norm) => ({
       pass:

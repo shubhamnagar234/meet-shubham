@@ -48,7 +48,12 @@ export const EMPLOYMENT_DATA = {
   verifiedResponsibilitiesAndAchievements: [
     {
       area: "Educational AI Chatbot & RAG",
-      technologies: ["LangChain", "Pinecone", "OpenAI Embeddings", "OpenAI LLM"],
+      technologies: [
+        "LangChain",
+        "Pinecone",
+        "OpenAI Embeddings",
+        "OpenAI LLM",
+      ],
       detail:
         "Engineered a context-aware LLM chatbot delivering course-grounded answers to students. Maintained sub-3-second retrieval latency to ensure responsive classroom engagement without relying on ungrounded model responses.",
       metrics: "Sub-3-second retrieval latency.",
@@ -76,7 +81,13 @@ export const EMPLOYMENT_DATA = {
     },
     {
       area: "Cloud Architecture & CI/CD",
-      technologies: ["AWS EC2", "AWS S3", "AWS Lambda", "GitHub Actions", "Docker"],
+      technologies: [
+        "AWS EC2",
+        "AWS S3",
+        "AWS Lambda",
+        "GitHub Actions",
+        "Docker",
+      ],
       detail:
         "Deployed React.js and Node.js services to AWS (EC2, S3, Lambda) and automated build, test, and release pipelines via GitHub Actions, decreasing manual deployment overhead by 30%.",
       metrics: "30% manual deployment effort reduction.",
@@ -303,7 +314,8 @@ export const VERIFIED_METRICS = [
     metric: "Sub-3-second (<3s)",
     attribute: "Course content retrieval response time",
     project: "Educational AI Chatbot at 3I Academy Solutions",
-    context: "Reported retrieval performance grounded in Pinecone vector search.",
+    context:
+      "Reported retrieval performance grounded in Pinecone vector search.",
     forbiddenMisattributions: [
       "Must NEVER be attributed to TokenHire or Ragentic.",
     ],
@@ -312,7 +324,8 @@ export const VERIFIED_METRICS = [
     metric: "30% reduction",
     attribute: "Manual deployment effort reduction",
     project: "AWS CI/CD at 3I Academy Solutions",
-    context: "Achieved via GitHub Actions automation for React/Node deployments.",
+    context:
+      "Achieved via GitHub Actions automation for React/Node deployments.",
     forbiddenMisattributions: [
       "Must NEVER be attributed to TokenHire or Ragentic.",
     ],
@@ -322,9 +335,7 @@ export const VERIFIED_METRICS = [
     attribute: "API optimization with security headers & encryption",
     project: "REST APIs at 3I Academy Solutions",
     context: "Measured across optimized secure endpoints.",
-    forbiddenMisattributions: [
-      "Must NEVER be attributed to other projects.",
-    ],
+    forbiddenMisattributions: ["Must NEVER be attributed to other projects."],
   },
   {
     metric: "10+ schools and 1,000+ students",
@@ -340,9 +351,7 @@ export const VERIFIED_METRICS = [
     attribute: "Razorpay payment processing volume",
     project: "3I Academy Solutions",
     context: "Educational platform subscription and order volume.",
-    forbiddenMisattributions: [
-      "Must NEVER be attributed to TokenHire.",
-    ],
+    forbiddenMisattributions: ["Must NEVER be attributed to TokenHire."],
   },
   {
     metric: "1,500+ animations across 5+ subjects, grades 6–12",
@@ -452,7 +461,7 @@ export const APPROVED_FIRST_PERSON_ANSWERS = {
    * Question 7: "How do you use AI coding agents in your workflow?"
    */
   aiCodingAgentsWorkflow:
-    "I use AI coding tools such as Google Antigravity to explore implementation options, understand unfamiliar code, generate initial drafts, and speed up repetitive development work.\n\nI treat their output as a starting point rather than something to trust automatically. I review the logic, check whether it fits the existing architecture, and verify the behavior before integrating it.\n\nI also distinguish between a coding assistant and a runtime AI agent. A coding assistant helps me develop software, whereas a runtime workflow like Ragentic’s LangGraph pipeline executes defined steps within the application.\n\nFor me, the real value of AI coding tools is increased productivity while retaining engineering judgment, understanding, and responsibility for the final result.",
+    "I use AI coding tools such as Google Antigravity, Cursor, Claude Code, and OpenAI Codex to explore implementation options, understand unfamiliar code, generate initial drafts, and speed up repetitive development work.\n\nI treat their output as a starting point rather than something to trust automatically. I review the logic, check whether it fits the existing architecture, and verify the behavior before integrating it.\n\nI also distinguish between a coding assistant and a runtime AI agent. A coding assistant helps me develop software, whereas a runtime workflow like Ragentic’s LangGraph pipeline executes defined steps within the application.\n\nFor me, the real value of AI coding tools is increased productivity while retaining engineering judgment, understanding, and responsibility for the final result.",
 
   /**
    * Question 8: "How do you make sure AI-generated code is correct?"

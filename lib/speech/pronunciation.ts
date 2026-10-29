@@ -26,7 +26,8 @@ export const PRONUNCIATION_DICTIONARY: PronunciationEntry[] = [
   {
     term: "SKIT Jaipur",
     spoken: "S-K-I-T Jaipur",
-    description: "Swami Keshvanand Institute of Technology (avoids comedy sketch pronunciation)",
+    description:
+      "Swami Keshvanand Institute of Technology (avoids comedy sketch pronunciation)",
     category: "proper_noun",
   },
   {
@@ -76,7 +77,8 @@ export const PRONUNCIATION_DICTIONARY: PronunciationEntry[] = [
   {
     term: "RAG",
     spoken: "RAG",
-    description: "Retrieval-Augmented Generation (pronounced as single industry term)",
+    description:
+      "Retrieval-Augmented Generation (pronounced as single industry term)",
     category: "acronym",
   },
   {
@@ -296,10 +298,7 @@ export function normalizeForSpeech(text: string): string {
     /\b3\.5\+\s*years\b/gi,
     "more than three and a half years",
   );
-  spoken = spoken.replace(
-    /\b3\.5\s*years\b/gi,
-    "three and a half years",
-  );
+  spoken = spoken.replace(/\b3\.5\s*years\b/gi, "three and a half years");
 
   // "10+ schools" -> "more than ten schools"
   spoken = spoken.replace(/\b10\+\s*schools\b/gi, "more than ten schools");
@@ -350,10 +349,16 @@ export function normalizeForSpeech(text: string): string {
   // ── 3. INSTITUTIONS & PROPER NOUNS ─────────────────────────────────────────
   // SKIT Jaipur -> S-K-I-T Jaipur (idempotent: avoids S---K---I---T)
   spoken = spoken.replace(/\bskit\s+jaipur\b/gi, "S-K-I-T Jaipur");
-  spoken = spoken.replace(/\bS(?:\.|\s|-)?K(?:\.|\s|-)?I(?:\.|\s|-)?T\b/g, "S-K-I-T");
+  spoken = spoken.replace(
+    /\bS(?:\.|\s|-)?K(?:\.|\s|-)?I(?:\.|\s|-)?T\b/g,
+    "S-K-I-T",
+  );
 
   // 3I Academy Solutions -> Three-I Academy Solutions
-  spoken = spoken.replace(/\b3I\s+Academy\s+Solutions\b/gi, "Three-I Academy Solutions");
+  spoken = spoken.replace(
+    /\b3I\s+Academy\s+Solutions\b/gi,
+    "Three-I Academy Solutions",
+  );
   spoken = spoken.replace(/\b3I\s+Academy\b/gi, "Three-I Academy");
   spoken = spoken.replace(/\b3I\b/g, "Three-I");
 
@@ -362,13 +367,13 @@ export function normalizeForSpeech(text: string): string {
     /\bB\.Tech\s*\((?:Honours|Hons)\)\b/gi,
     "Bachelors of Technology with Honours",
   );
-  spoken = spoken.replace(
-    /\bB\.Tech\b/gi,
-    "Bachelors of Technology",
-  );
+  spoken = spoken.replace(/\bB\.Tech\b/gi, "Bachelors of Technology");
 
   // CGPA -> C-G-P-A (idempotent)
-  spoken = spoken.replace(/\bC(?:\.|\s|-)?G(?:\.|\s|-)?P(?:\.|\s|-)?A\b/gi, "C-G-P-A");
+  spoken = spoken.replace(
+    /\bC(?:\.|\s|-)?G(?:\.|\s|-)?P(?:\.|\s|-)?A\b/gi,
+    "C-G-P-A",
+  );
 
   // ── 4. TECHNICAL FRAMEWORKS & TOOLS ────────────────────────────────────────
   // PostgreSQL -> Postgres
@@ -395,12 +400,18 @@ export function normalizeForSpeech(text: string): string {
   // RAGAS -> Ragas (consistent natural pronunciation)
   spoken = spoken.replace(/\bRAGAS\b/gi, "Ragas");
 
+  // OpenAI -> Open A-I (idempotent)
+  spoken = spoken.replace(/\bOpenAI\b/gi, "Open A-I");
+
   // CI/CD -> C-I, C-D (idempotent)
   spoken = spoken.replace(/\bCI\/CD\b/gi, "C-I, C-D");
 
   // ── 5. ACRONYMS WITH ACCURATE PHONETIC SPELLING ────────────────────────────
   // RBAC -> R-B-A-C (idempotent)
-  spoken = spoken.replace(/\bR(?:\.|\s|-)?B(?:\.|\s|-)?A(?:\.|\s|-)?C\b/gi, "R-B-A-C");
+  spoken = spoken.replace(
+    /\bR(?:\.|\s|-)?B(?:\.|\s|-)?A(?:\.|\s|-)?C\b/gi,
+    "R-B-A-C",
+  );
 
   // RRF -> R-R-F (idempotent)
   spoken = spoken.replace(/\bR(?:\.|\s|-)?R(?:\.|\s|-)?F\b/g, "R-R-F");
@@ -418,7 +429,10 @@ export function normalizeForSpeech(text: string): string {
   spoken = spoken.replace(/\bS(?:\.|\s|-)?S(?:\.|\s|-)?E\b/g, "S-S-E");
 
   // GSAP -> G-S-A-P (idempotent)
-  spoken = spoken.replace(/\bG(?:\.|\s|-)?S(?:\.|\s|-)?A(?:\.|\s|-)?P\b/gi, "G-S-A-P");
+  spoken = spoken.replace(
+    /\bG(?:\.|\s|-)?S(?:\.|\s|-)?A(?:\.|\s|-)?P\b/gi,
+    "G-S-A-P",
+  );
 
   // JWT -> J-W-T (idempotent)
   spoken = spoken.replace(/\bJ(?:\.|\s|-)?W(?:\.|\s|-)?T\b/gi, "J-W-T");
