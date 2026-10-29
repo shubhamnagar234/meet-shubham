@@ -34,7 +34,8 @@ export const VERIFIED_FACTS = {
     institution:
       "Swami Keshvanand Institute of Technology, Management & Gramothan (SKIT)",
     location: "Jaipur, India",
-    degree: "Bachelor of Technology in Computer Science & Engineering (Honours)",
+    degree:
+      "Bachelor of Technology in Computer Science & Engineering (Honours)",
     cgpa: "9.09",
     period: "Aug. 2019 – Jun. 2023",
   },
@@ -59,13 +60,7 @@ export const VERIFIED_FACTS = {
       "Semantic Search",
       "RAGAS",
     ],
-    programmingLanguages: [
-      "JavaScript",
-      "TypeScript",
-      "Python",
-      "C",
-      "C++",
-    ],
+    programmingLanguages: ["JavaScript", "TypeScript", "Python", "C", "C++"],
     frontend: [
       "React.js",
       "Next.js",
@@ -99,18 +94,8 @@ export const VERIFIED_FACTS = {
       "Docker",
       "Git",
     ],
-    databasesAndOrms: [
-      "PostgreSQL",
-      "MySQL",
-      "MongoDB",
-      "Prisma",
-      "Drizzle",
-    ],
-    mobileAppDevelopment: [
-      "React Native",
-      "Expo",
-      "Android Studio",
-    ],
+    databasesAndOrms: ["PostgreSQL", "MySQL", "MongoDB", "Prisma", "Drizzle"],
+    mobileAppDevelopment: ["React Native", "Expo", "Android Studio"],
     developerTools: [
       "VS Code",
       "Postman",
@@ -180,7 +165,14 @@ export const VERIFIED_FACTS = {
     tokenHire: {
       name: "TokenHire",
       tagline: "AI-powered coding assessment platform",
-      stack: ["Next.js", "Prisma", "PostgreSQL", "LangChain", "Gemini", "Judge0"],
+      stack: [
+        "Next.js",
+        "Prisma",
+        "PostgreSQL",
+        "LangChain",
+        "Gemini",
+        "Judge0",
+      ],
       links: "Live Demo | GitHub",
       highlights: [
         "Engineered an AI-powered coding assessment platform with 3 user roles and recruiter-defined LLM token budgets, enabling configurable, resource-aware candidate assessments.",
