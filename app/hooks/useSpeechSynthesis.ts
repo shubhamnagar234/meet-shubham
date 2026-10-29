@@ -9,10 +9,11 @@ const SPEECH_RATE = 1.08; // ~8% boost for crisp, conversational interview caden
 export interface UseSpeechSynthesisReturn {
   isSpeaking: boolean;
   isSupported: boolean;
-  speak: (text: string) => void;
+  speak: (text: string, onStart?: () => void) => void;
   stop: () => void;
   replay: () => void;
   activeEngine: "neural" | "browser" | null;
+  unlockAudio: () => void;
 }
 
 export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
@@ -23,14 +24,37 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
     emptySubscribe,
     () =>
       typeof window !== "undefined" &&
-      (typeof Audio !== "undefined" || "speechSynthesis" in window),
+      (typeof Audio !== "undefined" ||
+        "AudioContext" in window ||
+        "webkitAudioContext" in window ||
+        "speechSynthesis" in window),
     () => true,
   );
 
   const lastTextRef = useRef<string>("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const webAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const resumeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onStartCallbackRef = useRef<(() => void) | null>(null);
+
+  // Pre-fetch speech voices on mount for Safari / iOS WebKit where getVoices() is initially empty
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const loadVoices = () => {
+      try {
+        window.speechSynthesis.getVoices();
+      } catch {}
+    };
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    return () => {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
 
   const clearResumeInterval = useCallback(() => {
     if (resumeIntervalRef.current) {
@@ -39,16 +63,104 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
     }
   }, []);
 
+  // Synchronous audio priming to satisfy Safari / iOS WebKit & Chrome strict autoplay policies
+  // Calling this during any user interaction (click, touch, keydown) permanently blesses the audio session
+  const unlockAudio = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    // 1. Prime HTML5 Audio element
+    if (typeof Audio !== "undefined") {
+      try {
+        if (!audioRef.current) {
+          audioRef.current = new Audio();
+        }
+        const audio = audioRef.current;
+        if (!audio.src || audio.src.startsWith("data:") || audio.ended) {
+          audio.src =
+            "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+          const p = audio.play();
+          if (p !== undefined) {
+            p.then(() => {
+              audio.pause();
+              audio.currentTime = 0;
+            }).catch(() => {});
+          }
+        }
+      } catch {}
+    }
+
+    // 2. Prime Web Audio API AudioContext (the most reliable audio unlock mechanism for Safari & iOS)
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtx) {
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new AudioCtx();
+        }
+        if (audioCtxRef.current.state === "suspended") {
+          audioCtxRef.current.resume().catch(() => {});
+        }
+        // Play 1-sample silent sound through Web Audio to permanently activate the audio pipeline
+        const buffer = audioCtxRef.current.createBuffer(1, 1, 22050);
+        const source = audioCtxRef.current.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtxRef.current.destination);
+        source.start(0);
+      }
+    } catch {}
+
+    // 3. Prime Web Speech API for Safari/iOS
+    if ("speechSynthesis" in window) {
+      try {
+        const silent = new SpeechSynthesisUtterance("");
+        silent.volume = 0;
+        window.speechSynthesis.speak(silent);
+      } catch {}
+    }
+  }, []);
+
+  const stop = useCallback(() => {
+    // 1. Stop HTML5 Audio if playing
+    if (audioRef.current) {
+      const activeAudio = audioRef.current;
+      try {
+        activeAudio.pause();
+        activeAudio.currentTime = 0;
+      } catch {}
+    }
+
+    // 2. Stop Web Audio API source node if active
+    if (webAudioSourceRef.current) {
+      try {
+        webAudioSourceRef.current.stop();
+        webAudioSourceRef.current.disconnect();
+      } catch {}
+      webAudioSourceRef.current = null;
+    }
+
+    // 3. Stop Web Speech synthesis if active
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+
+    clearResumeInterval();
+    setIsSpeaking(false);
+    setActiveEngine(null);
+  }, [clearResumeInterval]);
+
   // Browser Web Speech fallback when server-side Neural TTS is unreachable or fails
   const fallbackWebSpeech = useCallback(
-    (text: string) => {
+    (text: string, onStartTrigger?: () => void) => {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) {
         setIsSpeaking(false);
         setActiveEngine(null);
+        onStartTrigger?.();
         return;
       }
 
-      // Ensure any previous synthesis is stopped
       window.speechSynthesis.cancel();
       clearResumeInterval();
 
@@ -59,7 +171,7 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
 
       // Preferred voice ranking:
       // 1. Exact match for Microsoft Prabhat / en-IN male natural voices
-      // 2. Any en-IN (Indian English) voice
+      // 2. Any en-IN (Indian English) voice (Rishi on Safari/macOS/iOS)
       // 3. High quality natural English voices (Google, Natural, Microsoft)
       // 4. Default English voice
       const preferred =
@@ -93,8 +205,8 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
       utterance.onstart = () => {
         setIsSpeaking(true);
         setActiveEngine("browser");
+        onStartTrigger?.();
 
-        // Workaround for Chrome/WebKit bug where long speech pauses mid-sentence
         clearResumeInterval();
         resumeIntervalRef.current = setInterval(() => {
           if (typeof window !== "undefined" && window.speechSynthesis.paused) {
@@ -110,7 +222,6 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
       };
 
       utterance.onerror = (event) => {
-        // Ignored when explicitly cancelled by stop()
         if (event.error === "canceled" || event.error === "interrupted") {
           return;
         }
@@ -120,39 +231,80 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
         clearResumeInterval();
       };
 
+      // Workaround for Safari: if paused, resume
+      if (window.speechSynthesis.paused) {
+        try {
+          window.speechSynthesis.resume();
+        } catch {}
+      }
+
       window.speechSynthesis.speak(utterance);
     },
     [clearResumeInterval],
   );
 
-  const stop = useCallback(() => {
-    // 1. Stop and release HTML5 Audio if playing Neural TTS
-    if (audioRef.current) {
-      const activeAudio = audioRef.current;
-      audioRef.current = null; // Detach ref first to prevent onerror loop
+  // Web Audio API playback: reliable on Safari / iOS WebKit if HTML5 Audio encounters playback restrictions
+  const playWithWebAudio = useCallback(
+    async (text: string, onStartTrigger: () => void) => {
       try {
-        activeAudio.pause();
-        activeAudio.currentTime = 0;
-        activeAudio.src = "";
-      } catch {
-        // Ignore abort teardown errors
+        const AudioCtx =
+          typeof window !== "undefined" &&
+          (window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
+        if (!AudioCtx) {
+          fallbackWebSpeech(text, onStartTrigger);
+          return;
+        }
+
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new AudioCtx();
+        }
+        const ctx = audioCtxRef.current;
+        if (ctx.state === "suspended") {
+          await ctx.resume();
+        }
+
+        const res = await fetch(`/api/tts?text=${encodeURIComponent(text)}`);
+        if (!res.ok) {
+          throw new Error(`TTS API status ${res.status}`);
+        }
+        const arrayBuffer = await res.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+        if (webAudioSourceRef.current) {
+          try {
+            webAudioSourceRef.current.stop();
+          } catch {}
+        }
+
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.playbackRate.value = SPEECH_RATE;
+        source.connect(ctx.destination);
+
+        source.onended = () => {
+          setIsSpeaking(false);
+          setActiveEngine(null);
+        };
+
+        onStartTrigger();
+        setIsSpeaking(true);
+        setActiveEngine("neural");
+        source.start(0);
+        webAudioSourceRef.current = source;
+      } catch (e) {
+        console.warn("Web Audio API neural playback failed, falling back to Web Speech:", e);
+        fallbackWebSpeech(text, onStartTrigger);
       }
-    }
-
-    // 2. Stop Web Speech synthesis if active
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-
-    clearResumeInterval();
-    setIsSpeaking(false);
-    setActiveEngine(null);
-  }, [clearResumeInterval]);
+    },
+    [fallbackWebSpeech],
+  );
 
   const speak = useCallback(
-    (text: string) => {
+    (text: string, onStart?: () => void) => {
       if (!text) return;
       lastTextRef.current = text;
+      onStartCallbackRef.current = onStart || null;
 
       // Stop any ongoing speech before starting new speech
       stop();
@@ -160,61 +312,86 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
       const cleaned = normalizeForSpeech(text);
       if (!cleaned) return;
 
-      // Check if Audio API is supported in browser
+      let hasTriggeredStart = false;
+      const triggerStart = () => {
+        if (!hasTriggeredStart) {
+          hasTriggeredStart = true;
+          setIsSpeaking(true);
+          if (onStartCallbackRef.current) {
+            onStartCallbackRef.current();
+            onStartCallbackRef.current = null;
+          }
+        }
+      };
+
+      // Safety timeout: if audio takes longer than 350ms to fire, reveal text and waveform so the user is never stalled
+      const timeoutId = setTimeout(() => {
+        triggerStart();
+      }, 350);
+
+      const cancelTimeout = () => {
+        clearTimeout(timeoutId);
+      };
+
+      // Check if Audio API is supported
       if (typeof Audio === "undefined") {
-        fallbackWebSpeech(cleaned);
+        cancelTimeout();
+        fallbackWebSpeech(cleaned, triggerStart);
         return;
       }
 
       try {
         const audioUrl = `/api/tts?text=${encodeURIComponent(cleaned)}`;
-        const audio = new Audio(audioUrl);
+
+        // Reuse primed audio element to maintain Safari / iOS WebKit unlock
+        let audio = audioRef.current;
+        if (!audio) {
+          audio = new Audio();
+          audioRef.current = audio;
+        }
+
+        audio.src = audioUrl;
         audio.playbackRate = SPEECH_RATE;
-        audioRef.current = audio;
+        audio.currentTime = 0;
 
         audio.onplay = () => {
-          setIsSpeaking(true);
+          cancelTimeout();
+          triggerStart();
           setActiveEngine("neural");
         };
 
         audio.onended = () => {
-          if (audioRef.current === audio) {
-            audioRef.current = null;
-            setIsSpeaking(false);
-            setActiveEngine(null);
-          }
+          setIsSpeaking(false);
+          setActiveEngine(null);
         };
 
         audio.onerror = () => {
-          // If this audio element was already detached by stop(), ignore
-          if (audioRef.current !== audio) return;
-          audioRef.current = null;
-          console.warn("Neural TTS request failed or stream error, falling back to Web Speech API.");
-          fallbackWebSpeech(cleaned);
+          cancelTimeout();
+          console.warn("HTML5 audio playback error; attempting Web Audio API decoding...");
+          playWithWebAudio(cleaned, triggerStart);
         };
 
         const playPromise = audio.play();
         if (playPromise !== undefined) {
           playPromise.catch((err: unknown) => {
-            // If stopped or aborted, do not trigger fallback
-            if (audioRef.current !== audio) return;
             const errName = (err as { name?: string })?.name;
             if (errName === "AbortError") return;
 
-            audioRef.current = null;
+            cancelTimeout();
             console.warn(
-              "Audio playback was prevented; falling back to Web Speech:",
+              "Audio.play() prevented by browser policy; trying Web Audio API decoding:",
               err,
             );
-            fallbackWebSpeech(cleaned);
+            playWithWebAudio(cleaned, triggerStart);
           });
         }
       } catch (err: unknown) {
+        cancelTimeout();
         console.warn("Failed to initialize Neural TTS Audio element:", err);
-        fallbackWebSpeech(cleaned);
+        playWithWebAudio(cleaned, triggerStart);
       }
     },
-    [fallbackWebSpeech, stop],
+    [fallbackWebSpeech, playWithWebAudio, stop],
   );
 
   const replay = useCallback(() => {
@@ -230,5 +407,5 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
     };
   }, [stop]);
 
-  return { isSpeaking, isSupported, speak, stop, replay, activeEngine };
+  return { isSpeaking, isSupported, speak, stop, replay, activeEngine, unlockAudio };
 }

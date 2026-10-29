@@ -37,12 +37,33 @@ export function VoiceAssistant() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastAssistantMessageRef = useRef<string | null>(null);
 
-  const { isSpeaking, speak, stop, replay } = useSpeechSynthesis();
+  const { isSpeaking, speak, stop, replay, unlockAudio } = useSpeechSynthesis();
+
+  // One-time audio priming on the very first user interaction (click, touch, or key)
+  // This permanently blesses audio playback for Safari, iOS, and Chrome MEI policies
+  useEffect(() => {
+    const handleInitialGesture = () => {
+      unlockAudio();
+    };
+
+    window.addEventListener("click", handleInitialGesture, { passive: true });
+    window.addEventListener("touchstart", handleInitialGesture, { passive: true });
+    window.addEventListener("keydown", handleInitialGesture, { passive: true });
+
+    return () => {
+      window.removeEventListener("click", handleInitialGesture);
+      window.removeEventListener("touchstart", handleInitialGesture);
+      window.removeEventListener("keydown", handleInitialGesture);
+    };
+  }, [unlockAudio]);
 
   const submitQuestion = useCallback(
     async (question: string) => {
       const trimmed = question.trim();
       if (!trimmed || isProcessing) return;
+
+      // Synchronously prime audio during the user gesture before async fetch
+      unlockAudio();
 
       // Clear input & error
       setInputText("");
@@ -95,7 +116,6 @@ export function VoiceAssistant() {
           fallbackUsed: data.fallbackUsed,
         };
 
-        setMessages((prev) => [...prev, assistantMsg]);
         lastAssistantMessageRef.current = assistantMsg.id;
         setSpeakingMessageId(assistantMsg.id);
 
@@ -106,8 +126,11 @@ export function VoiceAssistant() {
           { role: "model" as const, parts: [{ text: data.answer }] },
         ].slice(-12); // keep last 6 turns (12 entries)
 
-        // Speak the answer
-        speak(data.answer);
+        // Synchronized reveal: text message, waveform, and voice trigger simultaneously without delay
+        speak(data.answer, () => {
+          setMessages((prev) => [...prev, assistantMsg]);
+          setIsProcessing(false);
+        });
       } catch (err) {
         const msg =
           err instanceof Error
@@ -115,12 +138,11 @@ export function VoiceAssistant() {
             : "Something went wrong. Please try again.";
         setErrorBanner(msg);
         setIsError(true);
-        setTimeout(() => setIsError(false), 3000);
-      } finally {
         setIsProcessing(false);
+        setTimeout(() => setIsError(false), 3000);
       }
     },
-    [isProcessing, speak, stop],
+    [isProcessing, speak, stop, unlockAudio],
   );
 
   const handleSpeechResult = useCallback(
@@ -194,6 +216,7 @@ export function VoiceAssistant() {
   }, [messages, isProcessing]);
 
   const handleMicClick = useCallback(() => {
+    unlockAudio();
     if (isListening) {
       stopListening();
     } else if (isSpeaking) {
@@ -208,28 +231,32 @@ export function VoiceAssistant() {
     startListening,
     stopListening,
     stop,
+    unlockAudio,
   ]);
 
   const handleTextSubmit = useCallback(
     (q: string) => {
+      unlockAudio();
       submitQuestion(q);
     },
-    [submitQuestion],
+    [submitQuestion, unlockAudio],
   );
 
   const handleSuggestion = useCallback(
     (q: string) => {
+      unlockAudio();
       submitQuestion(q);
     },
-    [submitQuestion],
+    [submitQuestion, unlockAudio],
   );
 
   const handleSpeak = useCallback(
     (msgId: string, content: string) => {
+      unlockAudio();
       setSpeakingMessageId(msgId);
       speak(content);
     },
-    [speak],
+    [speak, unlockAudio],
   );
 
   const handleStop = useCallback(() => {
@@ -238,8 +265,9 @@ export function VoiceAssistant() {
   }, [stop]);
 
   const handleReplay = useCallback(() => {
+    unlockAudio();
     replay();
-  }, [replay]);
+  }, [replay, unlockAudio]);
 
   const isDisabled = appState === "processing";
   const lastAssistantMsg = [...messages]
