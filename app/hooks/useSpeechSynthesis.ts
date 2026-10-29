@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState, useEffect, useSyncExternalStore } from "react";
+import { normalizeForSpeech } from "../utils/speechNormalizer";
 
 const emptySubscribe = () => () => {};
 
@@ -10,18 +11,6 @@ export interface UseSpeechSynthesisReturn {
   speak: (text: string) => void;
   stop: () => void;
   replay: () => void;
-}
-
-/**
- * Strips markdown symbols, asterisks, brackets and excessive whitespace
- * so the neural voice reads clean, natural spoken English.
- */
-function cleanTextForSpeech(raw: string): string {
-  return raw
-    .replace(/[*#`_~>]/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // [text](url) -> text
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
@@ -136,7 +125,7 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
 
   const speak = useCallback(
     (text: string) => {
-      const cleaned = cleanTextForSpeech(text);
+      const cleaned = normalizeForSpeech(text);
       if (!cleaned) return;
 
       lastTextRef.current = cleaned;

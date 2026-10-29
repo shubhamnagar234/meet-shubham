@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
-
+import { normalizeForSpeech } from "@/app/utils/speechNormalizer";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
     return new NextResponse("Missing text parameter", { status: 400 });
   }
 
-  // Bound text to prevent abuse (max 1500 chars)
-  const safeText = text.slice(0, 1500);
+  // Bound text to prevent abuse and normalize for accurate pronunciation
+  const safeText = normalizeForSpeech(text.slice(0, 1500));
   const voice = process.env.TTS_VOICE || "en-IN-PrabhatNeural";
 
   try {
